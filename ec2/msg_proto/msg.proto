@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package msg;
+
+/*消息类型字段*/
+/*--msg_type--*/
+//由于EC的设计中
+//RUDP通信层共享若干条连接(便于多径)
+//而非不同消息类型给予单独的连接(传统网络库)
+//因此消息中需要加入类型字段，以便接收端复用分发
+
+//消息头定义:服务类型名
+message msg_head {
+  string server_type = 1;//消息类型(必须)
+}
+
+//消息定义
+message msg_a {
+  string server_type = 1;//消息类型(必须)
+  int32 id = 2;     // 唯一标志符
+  string time = 3;  // 时间戳
+  string data = 4;
+}
+
+message msg_b {
+  string server_type = 1;//消息类型(必须)
+  int32 id = 2;     // 唯一标志符
+  string time = 3;  // 时间戳
+}

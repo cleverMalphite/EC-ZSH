@@ -1,0 +1,231 @@
+#ifndef _FILE_RECEIVER_H__
+#define _FILE_RECEIVER_H__
+
+#include <iostream>
+#include <thread>
+#include <functional>
+#include <filesystem>
+#include "GlobalMessage.h"
+#include "epollComm/EpollCommApi.h"
+#include "NetCombTransferApi.h"
+#include "SpeedControl/SpeedControlManager.h"
+#include "MRUDP/MRUDPApi.h"
+
+#include "public/utility.h"
+#include "public/_public.h"
+
+#include "fileblock/FileBlock.h"
+#include "fileblock/ReadFileBlock.h"
+#include "fileblock/WriteFileBlock.h"
+
+#include "fileblock/msg_cpp/FileBlockMsg.pb.h"
+
+#include <hv/hv.h>
+#include <hv/EventLoopThreadPool.h>
+
+typedef std::queue<hh::FileBlockMsg, std::list<hh::FileBlockMsg>> FileBlockQueue;
+
+CLogFile logfile_FileReceiver;
+
+void FileReceiverMrudpCallback(
+              DWORD dTermId, 
+              const std::shared_ptr<BYTE> &recv_data, 
+              DWORD dRecvDataByteLength,
+              void *handle);
+
+class FileReceiver
+{
+
+public:
+    FileReceiver(){}
+    ~FileReceiver(){}
+
+    void start(int nthreads);
+    void end();
+    
+public:
+    // write file thread function
+    void writefile_task(std::string task_name);
+
+
+public:
+    dd::Lock _file_recved_lock;
+    std::map<std::string, bool> _file_recved;
+
+    //文件任务标识符：task_name
+    //对应的文件名字查询map：_file_names 
+    //对应的互斥锁map：_queue_locks
+    //对应的fileblock队列map：_queue_locks
+
+    //std::map<std::string, dd::Lock> _queue_locks;
+    dd::Lock _queue_lock;
+    std::map<std::string, std::string> _file_names;//task_name -> file_name map
+    //create list queue(two direction link list) rather than dequeue(random rw array) queue
+    FileBlockQueue _msgqueue;
+    
+    //事件循环线程池
+    hv::EventLoopThreadPool _thrdpool;
+    
+    bool _keep_running = true;
+
+};
+
+//---------------Function Definition-----------------------
+    
+void FileReceiver::start(int nthreads){
+     //这个可以搞成线程池，只要有一个fileblock收到，就发送一个任务
+     _thrdpool.setThreadNum(4);
+     _thrdpool.start(true);
+
+     ;
+     //回调里，收到fileblock，存到列表，并发送一个对应的任务。(fileblock+func+argc 任务队列)
+     //if(register_mrudp_dataserver_callback("FILE",\
+     //               std::bind(&FileReceiver::mrudp_fileblockrecvfunc,
+     //               this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)
+     //               )==false) 
+     if(register_mrudp_dataserver_callback("FILE", FileReceiverMrudpCallback, this)==false) 
+     {
+         printf("<FileReceiver>接收方的mrudp数据服务回调-注册失败！\n"); 
+     }
+
+    _keep_running = true;
+
+    if(logfile_FileReceiver.Open("../log/FileReceiver.log", "a+")==false)
+    {
+        printf("<FileReceiver>打开日志文件出错！\n");
+        exit(0);
+    }
+}
+
+void FileReceiver::end(){
+    _thrdpool.join();
+}
+
+//recv mrudp callback function
+void FileReceiverMrudpCallback(
+              DWORD dTermId, 
+              const std::shared_ptr<BYTE> &recv_data, 
+              DWORD dRecvDataByteLength,
+              void *handle
+              )
+{
+    FileReceiver* preceiver = static_cast<FileReceiver*>(handle);
+    //这个东西可以通过对象池技术优化！
+    hh::FileBlockMsg filemsg;
+
+    logfile_FileReceiver.Write("recv a File block msg, mrudp_fileblockrecvfunc callback!\n");
+
+    if(filemsg.ParseFromArray(recv_data.get(), dRecvDataByteLength)==false) {
+      printf("<FileReceiver>[mrudp_dataserver]::filemsg.ParseFromArray failed\n");
+    }else{
+      printf("<FileReceiver>[mrudp_dataserver]::filemsg.ParseFromArray succeed!\n");
+    }
+
+    std::string task_name = filemsg.filename_();
+
+    {
+        dd::AutoLock autolock(preceiver->_file_recved_lock);
+        if( preceiver->_file_recved.find(task_name) == preceiver->_file_recved.end() ||\
+            preceiver->_file_recved[task_name]==false ){
+
+            preceiver->_file_recved[task_name] = true;
+
+            logfile_FileReceiver.Write("<FileReceiver>Add writefile_task with task_name:%s\n", task_name.c_str());
+            printf("<FileReceiver>Add writefile_task with task_name:%s\n", task_name.c_str());
+
+            //_file_names[task_name] = filemsg.filename_();
+            std::string fileName_withoutPath = GetFileNameFromPathStr(filemsg.filename_());
+            preceiver->_file_names[task_name] = fileName_withoutPath;
+
+            //添加对应文件的写文件任务
+            hv::EventLoopPtr loop = preceiver->_thrdpool.nextLoop();
+            loop->queueInLoop([preceiver,  task_name](){
+                preceiver->writefile_task(task_name);
+            });
+        }
+    }
+
+    logfile_FileReceiver.Write(">><FileReceiver>start Push blockmsg to _msgqueue!\n");
+    printf(">><FileReceiver>start Push blockmsg to _msgqueue!\n");
+    {
+        logfile_FileReceiver.Write(">><FileReceiver>do Push blockmsg to _msgqueue!\n");
+        printf(">><FileReceiver>do Push blockmsg to _msgqueue!\n");
+        dd::AutoLock autolock(preceiver->_queue_lock);
+
+        preceiver->_msgqueue.push(std::move(filemsg));
+
+        logfile_FileReceiver.Write(">><FileReceiver>did Push blockmsg to _msgqueue(task_name:%s, size=%d)!\n",
+                                   task_name.c_str(), preceiver->_msgqueue.size());
+        printf(">><FileReceiver>did Push blockmsg to _msgqueue(task_name:%s, size=%d)!\n",
+                                   task_name.c_str(), preceiver->_msgqueue.size());
+    }
+    preceiver = nullptr;
+}
+
+void FileReceiver::writefile_task(std::string task_name)
+{
+    uint32_t writed_cnt = 0;
+    std::unique_ptr<WriteFileBlock> pWriter = nullptr;
+
+    std::string file_name = _file_names[task_name];
+
+    while(_keep_running) {
+        usleep(1);
+        while(_msgqueue.size()>0 && _keep_running) {
+            //获取队列头的文件块数据
+            logfile_FileReceiver.Write("<FileReceiver>::WriteFileFUnc::_msgqueue.size()=%d\n",_msgqueue.size());
+            printf("<FileReceiver>::WriteFileFUnc::_msgqueue.size()=%d\n",_msgqueue.size());
+            {
+              dd::AutoLock autolock(_queue_lock);
+              // 注意： front返回的是一个引用
+              hh::FileBlockMsg blockmsg = _msgqueue.front();
+              //----------------------------------
+              //
+              //
+              //---------------------------------
+                //新的文件接收的开始处理
+                if(pWriter==nullptr) {
+                    pWriter = std::move(
+                                  std::unique_ptr<WriteFileBlock>( new WriteFileBlock(
+                                                    "../../FileRecv/"+file_name,//get filename from taskname
+                                                    blockmsg.filesize_total_(), 1,
+                                                    blockmsg.fileblocksize_())));
+                    printf("<FileReceiver>--------------Write file name = %s%s\n", "../../FileRecv/",file_name.c_str());
+                    logfile_FileReceiver.Write("--------------Write file name = %s%s\n", "../../FileRecv/",file_name.c_str());
+                }
+
+
+                pWriter->writeNextBlock(blockmsg);
+
+                //if(writed_cnt%50==0){
+                printf("<FileReceiver>write a file block [%d][total block: %ld].\n", writed_cnt, blockmsg.fileblocknumber_total_());
+                logfile_FileReceiver.Write("<FileReceiver>write a file block [%d][total block: %ld].\n", writed_cnt, blockmsg.fileblocknumber_total_());
+                //}
+                writed_cnt++;
+
+                //某个文件接收结束的处理
+                if(writed_cnt==blockmsg.fileblocknumber_total_())
+                {
+                    pWriter->flushWriteFileBlock();
+                    pWriter->finishWriteFileBlock();
+
+                    printf("<FileReceiver>finish write a file\n");
+                    logfile_FileReceiver.Write("<FileReceiver>finish write a file\n");
+
+                    return ;
+                }
+
+              //--------------------------------
+
+              _msgqueue.pop();
+            } 
+
+
+        }
+    }
+}
+
+
+
+
+#endif //_FILE_RECEIVER_H__

@@ -1,0 +1,61 @@
+cmake_minimum_required(VERSION 3.10)
+project(test_mrudp)
+
+# 应急系统
+
+SET(CMAKE_CXX_FLAGS -pthread)
+
+set(CMAKE_CXX_STANDARD 14)
+
+find_package(Protobuf REQUIRED)
+include_directories(${PROTOBUF_INCLUDE_DIRS})
+
+
+SET(PROJECT_DIR ../.)
+
+include_directories(SYSTEM "/foo/bar")
+include_directories(${PROJECT_DIR}/.)
+include_directories(${PROJECT_DIR}/IniHandle)
+include_directories(${PROJECT_DIR}/epollComm)
+include_directories(${PROJECT_DIR}/NetCombTransfer)
+include_directories(${PROJECT_DIR}/SpeedControl)
+include_directories(${PROJECT_DIR}/MRUDP)
+
+include_directories(${PROJECT_DIR}/msg_cpp)
+
+
+SET(SRC_MRUDP 
+  ${PROJECT_DIR}/msg_cpp/msg.pb.cc 
+  ${PROJECT_DIR}/public/_public.cpp
+)
+SET(HEAD_MRUDP 
+  ${PROJECT_DIR}/msg_cpp/msg.pb.h 
+  ${PROJECT_DIR}/public/_public.h
+)
+
+SET(LIB_MRUDP 
+  ${PROJECT_DIR}/build/IniHandle
+  ${PROJECT_DIR}/build/epollComm
+  ${PROJECT_DIR}/build/NetCombTransfer
+  ${PROJECT_DIR}/build/SpeedControl
+  ${PROJECT_DIR}/build/MRUDP
+)
+
+link_directories(${LIB_MRUDP})
+
+add_executable(test_mrudp 
+  test_mrudp.cpp 
+  ${SRC_MRUDP} 
+  ${HEAD_MRUDP}
+)
+target_link_libraries(test_mrudp 
+  IniHandler 
+  NetEpollComm
+  NetCombTransferAPI 
+  SpeedControl 
+  MRUDP 
+  ${PROTOBUF_LIBRARIES}
+)
+
+
+

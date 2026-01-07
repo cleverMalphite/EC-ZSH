@@ -1,0 +1,519 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="CMakePresetLoader">{
+  &quot;useNewFormat&quot;: true
+}</component>
+  <component name="CMakeReloadState">
+    <option name="reloaded" value="true" />
+  </component>
+  <component name="CMakeRunConfigurationManager">
+    <generated>
+      <config projectName="EmergencyCommunication" targetName="NetCommApi" />
+      <config projectName="EmergencyCommunication" targetName="RBUDP" />
+      <config projectName="EmergencyCommunication" targetName="EmergencyCommunication" />
+      <config projectName="EmergencyCommunication" targetName="Qt_SystemUI" />
+      <config projectName="EmergencyCommunication" targetName="NetCombTransferAPI" />
+      <config projectName="EmergencyCommunication" targetName="SPDLogger" />
+      <config projectName="EmergencyCommunication" targetName="SYSTEMUI" />
+      <config projectName="EmergencyCommunication" targetName="LIBSYSTEMUI" />
+      <config projectName="EmergencyCommunication" targetName="Qt_SystemUI_exe" />
+      <config projectName="EmergencyCommunication" targetName="BigDataTransfer" />
+      <config projectName="EmergencyCommunication" targetName="QOS" />
+      <config projectName="EmergencyCommunication" targetName="SpeedControl" />
+      <config projectName="EmergencyCommunication" targetName="EC_UI16_exe" />
+      <config projectName="EmergencyCommunication" targetName="MRUDP" />
+      <config projectName="EmergencyCommunication" targetName="EC_UI16" />
+      <config projectName="EmergencyCommunication" targetName="IniHandler" />
+    </generated>
+  </component>
+  <component name="CMakeSettings">
+    <configurations>
+      <configuration PROFILE_NAME="Debug" ENABLED="true" CONFIG_NAME="Debug" />
+      <configuration PROFILE_NAME="Release" ENABLED="true" CONFIG_NAME="Release" />
+    </configurations>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="a41aaba7-db94-4eae-9da7-a42fd0de2996" name="Changes" comment="!!!不可用：视频编码结果为空，但是使用应急底层传输数据没问题">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CNetTerminalManager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/CNetTerminalManager.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EC_UI/CMakeLists.txt.user" beforeDir="false" afterPath="$PROJECT_DIR$/EC_UI/CMakeLists.txt.user" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EC_UI/VideoReceiver.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/EC_UI/VideoReceiver.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EC_UI/VideoReceiver.h" beforeDir="false" afterPath="$PROJECT_DIR$/EC_UI/VideoReceiver.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EC_UI/VideoSender.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/EC_UI/VideoSender.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EC_UI/VideoSender.h" beforeDir="false" afterPath="$PROJECT_DIR$/EC_UI/VideoSender.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EC_UI/bin/EC_UI16_exe" beforeDir="false" afterPath="$PROJECT_DIR$/EC_UI/bin/EC_UI16_exe" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EC_UI/function.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/EC_UI/function.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EC_UI/function.h" beforeDir="false" afterPath="$PROJECT_DIR$/EC_UI/function.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EC_UI/main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/EC_UI/main.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EC_UI/mainwindow.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/EC_UI/mainwindow.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EC_UI/mainwindow.h" beforeDir="false" afterPath="$PROJECT_DIR$/EC_UI/mainwindow.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EC_UI/utilClass/DataUpdater.h" beforeDir="false" afterPath="$PROJECT_DIR$/EC_UI/utilClass/DataUpdater.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EC_UI/utilClass/MyEncoder.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/EC_UI/utilClass/MyEncoder.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MRUDP/InitRUDP.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/MRUDP/InitRUDP.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MRUDP/InitRUDP.h" beforeDir="false" afterPath="$PROJECT_DIR$/MRUDP/InitRUDP.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MRUDP/MRUDPManager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/MRUDP/MRUDPManager.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MRUDP/MRUDPManager.h" beforeDir="false" afterPath="$PROJECT_DIR$/MRUDP/MRUDPManager.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MRUDP/Transfer_CPP/VideoTransData.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/MRUDP/Transfer_CPP/VideoTransData.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MRUDP/Transfer_H/VideoTransData.h" beforeDir="false" afterPath="$PROJECT_DIR$/MRUDP/Transfer_H/VideoTransData.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Qt_SystemUI/MyEncoder.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/Qt_SystemUI/MyEncoder.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SpeedControl/SpeedControlManager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/SpeedControl/SpeedControlManager.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SpeedControl/Term2TermTransmission.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/SpeedControl/Term2TermTransmission.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/BigDataTransferApi.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/BigDataTransferApi.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/BigDataTransferManager.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/BigDataTransferManager.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/CXX.includecache" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/DataAndMessage_CPP/FileRecvFailed.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/DataAndMessage_CPP/FileRecvFailed.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/DataAndMessage_CPP/FileRecvSuccess.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/DataAndMessage_CPP/FileRecvSuccess.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/DataAndMessage_CPP/FileSendTaskCancel.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/DataAndMessage_CPP/FileSendTaskCancel.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/DataAndMessage_CPP/FileTransferData.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/DataAndMessage_CPP/FileTransferData.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/FileTransferTask_CPP/FileTransferRecvTask.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/FileTransferTask_CPP/FileTransferRecvTask.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/FileTransferTask_CPP/FileTransferSendTask.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/FileTransferTask_CPP/FileTransferSendTask.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/FileTransferTask_CPP/FileTransferTask.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer.dir/FileTransferTask_CPP/FileTransferTask.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer_autogen.dir/depend.internal" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/CMakeFiles/BigDataTransfer_autogen.dir/depend.make" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/libBigDataTransfer.a" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/BigDataTransfer/libBigDataTransfer.a" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/CMakeConfigureLog.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/CMakeConfigureLog.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/Makefile.cmake" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/Makefile.cmake" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/NetCombTransferAPI.dir/CIMsgChannelStatusNotify.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/NetCombTransferAPI.dir/CIMsgChannelStatusNotify.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/NetCombTransferAPI.dir/CNetBuffer.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/NetCombTransferAPI.dir/CNetBuffer.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/NetCombTransferAPI.dir/CNetChannel.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/NetCombTransferAPI.dir/CNetChannel.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/NetCombTransferAPI.dir/CNetTerminal.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/NetCombTransferAPI.dir/CNetTerminal.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/NetCombTransferAPI.dir/CNetTerminalManager.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/NetCombTransferAPI.dir/CNetTerminalManager.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/NetCombTransferAPI.dir/DataCodec.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/NetCombTransferAPI.dir/DataCodec.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/NetCombTransferAPI.dir/NetCombTransferApi.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/NetCombTransferAPI.dir/NetCombTransferApi.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/NetCombTransferAPI.dir/NetCombTransferCmdThread.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/NetCombTransferAPI.dir/NetCombTransferCmdThread.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/clion-Debug-log.txt" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/clion-Debug-log.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe.dir/EC_UI16_exe_autogen/mocs_compilation.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe.dir/EC_UI16_exe_autogen/mocs_compilation.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe.dir/VideoReceiver.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe.dir/VideoReceiver.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe.dir/VideoSender.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe.dir/VideoSender.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe.dir/function.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe.dir/function.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe.dir/main.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe.dir/main.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe.dir/mainwindow.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe.dir/mainwindow.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe.dir/temppage.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe.dir/temppage.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe.dir/utilClass/MyEncoder.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe.dir/utilClass/MyEncoder.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe_autogen.dir/ParseCache.txt" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/EC_UI/CMakeFiles/EC_UI16_exe_autogen.dir/ParseCache.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/EC_UI/EC_UI16_exe_autogen/E63BJ7ZICE/moc_DataUpdater.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/EC_UI/EC_UI16_exe_autogen/E63BJ7ZICE/moc_DataUpdater.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/EC_UI/EC_UI16_exe_autogen/EWIEGA46WW/moc_VideoReceiver.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/EC_UI/EC_UI16_exe_autogen/EWIEGA46WW/moc_VideoReceiver.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/EC_UI/EC_UI16_exe_autogen/EWIEGA46WW/moc_mainwindow.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/EC_UI/EC_UI16_exe_autogen/EWIEGA46WW/moc_mainwindow.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/EmergencyCommunication" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/IniHandle/CMakeFiles/IniHandler.dir/CXX.includecache" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/AbstractStorage_CPP/FileStorage.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/AbstractStorage_CPP/FileStorage.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/AbstractStorage_CPP/MemoryPartStorage.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/AbstractStorage_CPP/MemoryPartStorage.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/CXX.includecache" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/CircularQueue_CPP/RecvCircularDataQueue.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/CircularQueue_CPP/RecvCircularDataQueue.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/CircularQueue_CPP/SendCircularDataQueue.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/CircularQueue_CPP/SendCircularDataQueue.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/End2EndReliableTransmission.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/End2EndReliableTransmission.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/InitRUDP.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/InitRUDP.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/MRUDPManager.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/MRUDPManager.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/MRUDPSettingUtil.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/MRUDPSettingUtil.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/ReliableTransferLog.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/ReliableTransferLog.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/SendNewFileCycle.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/SendNewFileCycle.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/SendWindowStatusRecord.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/SendWindowStatusRecord.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/SerializeUtil.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/SerializeUtil.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/Transfer_CPP/ReliableForceAdjustBandWidthMessage.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/Transfer_CPP/ReliableForceAdjustBandWidthMessage.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/Transfer_CPP/ReliableForceSpeedMessage.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/Transfer_CPP/ReliableForceSpeedMessage.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/Transfer_CPP/ReliableForceStartAutoSend.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/Transfer_CPP/ReliableForceStartAutoSend.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/Transfer_CPP/ReliableUdpData.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/Transfer_CPP/ReliableUdpData.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/Transfer_CPP/ReliableUdpMessage.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/CMakeFiles/MRUDP.dir/Transfer_CPP/ReliableUdpMessage.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/MRUDP/libMRUDP.a" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/MRUDP/libMRUDP.a" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/CXX.includecache" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/EClaunch.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/EClaunch.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/Qt_SystemUI_autogen/mocs_compilation.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/Qt_SystemUI_autogen/mocs_compilation.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/autosendpage.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/autosendpage.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/createconnection.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/createconnection.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/createsendtask.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/createsendtask.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/function.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/function.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/main.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/main.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/mainwindow.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/mainwindow.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/transfertaskdisplay.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI.dir/transfertaskdisplay.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_autogen.dir/depend.internal" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_autogen.dir/depend.make" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/CXX.includecache" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/EClaunch.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/EClaunch.cpp.o.d" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/Ffmpeg_Decode.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/Ffmpeg_Decode.cpp.o.d" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/MyEncoder.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/MyEncoder.cpp.o.d" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/Qt_SystemUI_exe_autogen/mocs_compilation.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/Qt_SystemUI_exe_autogen/mocs_compilation.cpp.o.d" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/VideoReceiver.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/VideoReceiver.cpp.o.d" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/VideoSender.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/VideoSender.cpp.o.d" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/autosendpage.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/autosendpage.cpp.o.d" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/createconnection.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/createconnection.cpp.o.d" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/createsendtask.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/createsendtask.cpp.o.d" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/function.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/function.cpp.o.d" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/main.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/main.cpp.o.d" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/mainwindow.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/mainwindow.cpp.o.d" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/playerwidget.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/playerwidget.cpp.o.d" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/transfertaskdisplay.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/transfertaskdisplay.cpp.o.d" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/utilClass/isRBUDP_callback.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe.dir/utilClass/isRBUDP_callback.cpp.o.d" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe_autogen.dir/AutogenUsed.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe_autogen.dir/ParseCache.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe_autogen.dir/depend.internal" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/CMakeFiles/Qt_SystemUI_exe_autogen.dir/depend.make" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/Qt_SystemUI_exe_autogen/E63BJ7ZICE/moc_DataUpdater.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/Qt_SystemUI_exe_autogen/EWIEGA46WW/moc_EClaunch.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/Qt_SystemUI_exe_autogen/EWIEGA46WW/moc_VideoReceiver.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/Qt_SystemUI_exe_autogen/EWIEGA46WW/moc_VideoSender.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/Qt_SystemUI_exe_autogen/EWIEGA46WW/moc_autosendpage.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/Qt_SystemUI_exe_autogen/EWIEGA46WW/moc_createconnection.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/Qt_SystemUI_exe_autogen/EWIEGA46WW/moc_createsendtask.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/Qt_SystemUI_exe_autogen/EWIEGA46WW/moc_mainwindow.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/Qt_SystemUI_exe_autogen/EWIEGA46WW/moc_playerwidget.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/Qt_SystemUI_exe_autogen/EWIEGA46WW/moc_transfertaskdisplay.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/Qt_SystemUI_exe_autogen/moc_predefs.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/Qt_SystemUI_exe_autogen/mocs_compilation.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/libQt_SystemUI.a" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Qt_SystemUI/libQt_SystemUI.a" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/AbstractStorage_RBUDP_CPP/FileStorage.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/AbstractStorage_RBUDP_CPP/FileStorage.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/CRBUDPTerm2TermConfig.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/CRBUDPTerm2TermConfig.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/CXX.includecache" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/End2EndReliableTransmission.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/End2EndReliableTransmission.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/InitRBUDP.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/InitRBUDP.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/QueueMap_CPP/RecvDataQueueMap.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/QueueMap_CPP/RecvDataQueueMap.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/QueueMap_CPP/SendDataQueueMap.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/QueueMap_CPP/SendDataQueueMap.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/RBUDPManager.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/RBUDPManager.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/RBUDPTempData.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/RBUDPTempData.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/SendNewFileCycle.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/SendNewFileCycle.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/SerializeUtil_RBUDP.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/SerializeUtil_RBUDP.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/Transfer_CPP/NAK_Message.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/Transfer_CPP/NAK_Message.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/Transfer_CPP/RBUDPStartAutoSend.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/Transfer_CPP/RBUDPStartAutoSend.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/Transfer_CPP/RBUDPdata.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/RBUDP/CMakeFiles/RBUDP.dir/Transfer_CPP/RBUDPdata.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/RBUDP/libRBUDP.a" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/RBUDP/libRBUDP.a" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/SPDLogger/CMakeFiles/SPDLogger.dir/CXX.includecache" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/SYSTEMUI/CMakeFiles/LIBSYSTEMUI.dir/CXX.includecache" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/SYSTEMUI/CMakeFiles/LIBSYSTEMUI.dir/menuwithWindow.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/SYSTEMUI/CMakeFiles/LIBSYSTEMUI.dir/menuwithWindow.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/SYSTEMUI/CMakeFiles/SYSTEMUI.dir/CXX.includecache" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/SYSTEMUI/CMakeFiles/SYSTEMUI.dir/Menu.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/SYSTEMUI/CMakeFiles/SYSTEMUI.dir/main.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/SYSTEMUI/CMakeFiles/SYSTEMUI.dir/menuwithWindow.cpp.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/SYSTEMUI/libLIBSYSTEMUI.a" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/SYSTEMUI/libLIBSYSTEMUI.a" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/SpeedControl/CMakeFiles/SpeedControl.dir/CXX.includecache" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/SpeedControl/CMakeFiles/SpeedControl.dir/DataWithPacketInfo.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/SpeedControl/CMakeFiles/SpeedControl.dir/DataWithPacketInfo.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/SpeedControl/CMakeFiles/SpeedControl.dir/SpeedControlApi.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/SpeedControl/CMakeFiles/SpeedControl.dir/SpeedControlApi.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/SpeedControl/CMakeFiles/SpeedControl.dir/SpeedControlCallBackFunc.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/SpeedControl/CMakeFiles/SpeedControl.dir/SpeedControlCallBackFunc.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/SpeedControl/CMakeFiles/SpeedControl.dir/SpeedControlManager.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/SpeedControl/CMakeFiles/SpeedControl.dir/SpeedControlManager.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/SpeedControl/CMakeFiles/SpeedControl.dir/Term2TermTransmission.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/SpeedControl/CMakeFiles/SpeedControl.dir/Term2TermTransmission.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/SpeedControl/libSpeedControl.a" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/SpeedControl/libSpeedControl.a" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/CXX.includecache" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/DataCodec.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/DataCodec.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/EndToEndQos.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/EndToEndQos.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/Remote2SelfPacketQosFeedbackPacket.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/Remote2SelfPacketQosFeedbackPacket.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/Remote2SelfQosUnit.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/Remote2SelfQosUnit.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/SelfToRemoteQosUnit.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/SelfToRemoteQosUnit.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/TermToTermQosApi.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/TermToTermQosApi.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/TermToTermQosManager.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/TermToTermQosManager.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/bbr_circlequeue.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/bbr_circlequeue.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/bbr_received_circle_packet.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/bbr_received_circle_packet.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/bbr_sendhistory_circle_queue.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/CMakeFiles/QOS.dir/bbr_sendhistory_circle_queue.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/libQOS.a" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Term2TermQos/libQOS.a" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Testing/Temporary/LastTest.log" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Testing/Temporary/LastTest.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/epollComm/CMakeFiles/NetCommApi.dir/CBCast.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/epollComm/CMakeFiles/NetCommApi.dir/CBCast.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/epollComm/CMakeFiles/NetCommApi.dir/CIPSOCKET.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/epollComm/CMakeFiles/NetCommApi.dir/CIPSOCKET.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/epollComm/CMakeFiles/NetCommApi.dir/CNetCommEpoll.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/epollComm/CMakeFiles/NetCommApi.dir/CNetCommEpoll.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/epollComm/CMakeFiles/NetCommApi.dir/CTCP.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/epollComm/CMakeFiles/NetCommApi.dir/CTCP.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/epollComm/CMakeFiles/NetCommApi.dir/CUDP.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/epollComm/CMakeFiles/NetCommApi.dir/CUDP.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/epollComm/CMakeFiles/NetCommApi.dir/CXX.includecache" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/epollComm/CMakeFiles/NetCommApi.dir/ChannelManager.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/epollComm/CMakeFiles/NetCommApi.dir/ChannelManager.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/epollComm/CMakeFiles/NetCommApi.dir/EpollThreads.cpp.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/epollComm/CMakeFiles/NetCommApi.dir/EpollThreads.cpp.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/epollComm/libNetCommApi.a" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/epollComm/libNetCommApi.a" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/libNetCombTransferAPI.a" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/libNetCombTransferAPI.a" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-release/CMakeFiles/clion-Release-log.txt" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-release/CMakeFiles/clion-Release-log.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/epollComm/CIPSOCKET.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/epollComm/CIPSOCKET.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/epollComm/CNetCommEpoll.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/epollComm/CNetCommEpoll.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/epollComm/CTCP.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/epollComm/CTCP.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/epollComm/CUDP.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/epollComm/CUDP.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mGlobalDef.h" beforeDir="false" afterPath="$PROJECT_DIR$/mGlobalDef.h" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="CMakeBuildProfile:Debug" />
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="CMakeLists.txt" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="newRBUDP" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="OCResolveContextSettings">
+    <option name="configuration" value="0-Debug-MRUDP" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 4
+}</component>
+  <component name="ProjectId" id="2fiDwThKBuSK9ALf5Kcu4PCamjy" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
+    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
+    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;newEC__UI&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/ubuntu402/桌面/EC/newEC_UI_branch/EmergencyCommunication_videoSockTrans/EmergencyCommunication&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;project.propVCSSupport.Mappings&quot;,
+    &quot;structure.view.defaults.are.configured&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  }
+}</component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/EC_UI" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/MRUDP/Transfer_CPP" />
+    </key>
+  </component>
+  <component name="RunManager" selected="CMake Application.EC_UI16_server">
+    <configuration name="BigDataTransfer" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="BigDataTransfer" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="EC_UI16_client" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="c" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="EC_UI16_exe" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="EmergencyCommunication" RUN_TARGET_NAME="EC_UI16_exe">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="EC_UI16_server" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="s" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="EC_UI16_exe" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="EmergencyCommunication" RUN_TARGET_NAME="EC_UI16_exe">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="EmergencyCommunication" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="EmergencyCommunication" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="EmergencyCommunication" RUN_TARGET_NAME="EmergencyCommunication">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="IniHandler" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="IniHandler" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="LIBSYSTEMUI" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="LIBSYSTEMUI" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="MRUDP" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="MRUDP" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="NetCombTransferAPI" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="NetCombTransferAPI" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="NetCommApi" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="NetCommApi" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="QOS" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="QOS" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Qt_SystemUI" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="Qt_SystemUI" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Qt_SystemUI_exe" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="Qt_SystemUI_exe" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="EmergencyCommunication" RUN_TARGET_NAME="Qt_SystemUI_exe">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="RBUDP" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="RBUDP" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="SPDLogger" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="SPDLogger" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="SYSTEMUI" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="SYSTEMUI" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="EmergencyCommunication" RUN_TARGET_NAME="SYSTEMUI">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="SpeedControl" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="SpeedControl" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Unnamed" type="CMakeRunConfiguration" factoryName="Application" nameIsGenerated="true" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="EmergencyCommunication" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="EmergencyCommunication" RUN_TARGET_NAME="EmergencyCommunication">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="client" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="c" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="Qt_SystemUI_exe" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="EmergencyCommunication" RUN_TARGET_NAME="Qt_SystemUI_exe">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="server" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="s" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="EmergencyCommunication" TARGET_NAME="Qt_SystemUI_exe" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="EmergencyCommunication" RUN_TARGET_NAME="Qt_SystemUI_exe">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="CMake Application.EmergencyCommunication" />
+      <item itemvalue="CMake Application.Unnamed" />
+      <item itemvalue="CMake Application.server" />
+      <item itemvalue="CMake Application.client" />
+      <item itemvalue="CMake Application.NetCombTransferAPI" />
+      <item itemvalue="CMake Application.BigDataTransfer" />
+      <item itemvalue="CMake Application.EC_UI16_client" />
+      <item itemvalue="CMake Application.EC_UI16_server" />
+      <item itemvalue="CMake Application.NetCommApi" />
+      <item itemvalue="CMake Application.IniHandler" />
+      <item itemvalue="CMake Application.MRUDP" />
+      <item itemvalue="CMake Application.Qt_SystemUI" />
+      <item itemvalue="CMake Application.Qt_SystemUI_exe" />
+      <item itemvalue="CMake Application.RBUDP" />
+      <item itemvalue="CMake Application.SPDLogger" />
+      <item itemvalue="CMake Application.SpeedControl" />
+      <item itemvalue="CMake Application.LIBSYSTEMUI" />
+      <item itemvalue="CMake Application.SYSTEMUI" />
+      <item itemvalue="CMake Application.QOS" />
+    </list>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="a41aaba7-db94-4eae-9da7-a42fd0de2996" name="Changes" comment="" />
+      <created>1714275242757</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1714275242757</updated>
+      <workItem from="1714275243796" duration="60017000" />
+      <workItem from="1715244848286" duration="26763000" />
+      <workItem from="1715690185582" duration="2421000" />
+      <workItem from="1715744870780" duration="20740000" />
+      <workItem from="1715829838811" duration="2947000" />
+      <workItem from="1715868458278" duration="10306000" />
+      <workItem from="1715932164652" duration="36529000" />
+      <workItem from="1716028678559" duration="39525000" />
+      <workItem from="1717070005724" duration="65946000" />
+      <workItem from="1718367544950" duration="1099000" />
+      <workItem from="1718369263193" duration="3845000" />
+      <workItem from="1718373512143" duration="9744000" />
+      <workItem from="1718421940712" duration="2781000" />
+      <workItem from="1718439847686" duration="20615000" />
+      <workItem from="1718509527776" duration="49254000" />
+      <workItem from="1719392165324" duration="1038000" />
+    </task>
+    <task id="LOCAL-00001" summary="包含视频传输和本地图片播放，视频传输还有问题，本地图片播放正常">
+      <option name="closed" value="true" />
+      <created>1717072115653</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1717072115654</updated>
+    </task>
+    <task id="LOCAL-00002" summary="视频传输：信令传输已经修改为应急底层传输，另外还修改了视频传输发送端偶发性的段错误问题、偏色问题、闪烁问题">
+      <option name="closed" value="true" />
+      <created>1717234739777</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1717234739777</updated>
+    </task>
+    <task id="LOCAL-00003" summary="!!!不可用：视频编码结果为空，但是使用应急底层传输数据没问题">
+      <option name="closed" value="true" />
+      <created>1718457082704</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1718457082704</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VCPKGProject">
+    <isAutomaticEditVcpkgJson value="false" />
+    <isAutomaticCheckingOnLaunch value="false" />
+    <isAutomaticFoundErrors value="true" />
+    <isAutomaticFoundErrors value="true" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="包含视频传输和本地图片播放，视频传输还有问题，本地图片播放正常" />
+    <MESSAGE value="视频传输：信令传输已经修改为应急底层传输，另外还修改了视频传输发送端偶发性的段错误问题、偏色问题、闪烁问题" />
+    <MESSAGE value="!!!不可用：视频编码结果为空，但是使用应急底层传输数据没问题" />
+    <option name="LAST_COMMIT_MESSAGE" value="!!!不可用：视频编码结果为空，但是使用应急底层传输数据没问题" />
+  </component>
+  <component name="XDebuggerManager">
+    <watches-manager>
+      <configuration name="CMakeRunConfiguration">
+        <watch expression="m_pRGBFrame" />
+        <watch expression="m_pYUVFrame" />
+        <watch expression="pCodecH264" language="ObjectiveC" />
+        <watch expression="c" />
+        <watch expression="yuv_buff" />
+        <watch expression="rgb_buff" />
+        <watch expression="scxt" />
+        <watch expression="outbuf" />
+        <watch expression="*yuv_buff" language="ObjectiveC" />
+        <watch expression="m_pYUVFrame" />
+        <watch expression="m_pRGBFrame" />
+        <watch expression="yuv_buff" />
+      </configuration>
+    </watches-manager>
+  </component>
+</project>

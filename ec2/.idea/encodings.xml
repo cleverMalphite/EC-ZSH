@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/Qt_SystemUI/MyEncoder.cpp" charset="GBK" />
+    <file url="file://$PROJECT_DIR$/Term2TermQos/DataCodec.h" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Term2TermQos/EndToEndQos.h" charset="GB2312" />
+    <file url="file://$PROJECT_DIR$/Term2TermQos/InterfaceDataAbstractBuffer.h" charset="GB2312" />
+    <file url="file://$PROJECT_DIR$/Term2TermQos/Remote2SelfPacketQosFeedbackPacket.h" charset="GB2312" />
+    <file url="file://$PROJECT_DIR$/Term2TermQos/Remote2SelfQosUnit.cpp" charset="GB2312" />
+    <file url="file://$PROJECT_DIR$/Term2TermQos/Remote2SelfQosUnit.h" charset="GB2312" />
+    <file url="file://$PROJECT_DIR$/Term2TermQos/SelfToRemoteQosUnit.cpp" charset="GB2312" />
+    <file url="file://$PROJECT_DIR$/Term2TermQos/SelfToRemoteQosUnit.h" charset="GB2312" />
+    <file url="file://$PROJECT_DIR$/Term2TermQos/TermToTermQosApi.cpp" charset="GB2312" />
+    <file url="file://$PROJECT_DIR$/Term2TermQos/TermToTermQosApi.h" charset="GB2312" />
+    <file url="file://$PROJECT_DIR$/Term2TermQos/TermToTermQosManager.cpp" charset="GB2312" />
+    <file url="file://$PROJECT_DIR$/Term2TermQos/TermToTermQosManager.h" charset="GB2312" />
+    <file url="file://$PROJECT_DIR$/Term2TermQos/bbr_skiplist.h" charset="GB2312" />
+    <file url="file://$PROJECT_DIR$/Term2TermQos/sion.h" charset="GB2312" />
+  </component>
+</project>

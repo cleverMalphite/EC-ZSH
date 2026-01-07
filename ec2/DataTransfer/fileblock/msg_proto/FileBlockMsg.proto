@@ -1,0 +1,29 @@
+syntax = "proto3";                                                                                                                         package hh; //namespace
+
+message FileBlockMsg{
+  string server_type = 1;
+  uint32 sTID = 2;
+  uint32 dTID = 3;
+  
+  uint32 FileID_ = 4;
+  uint64 FileBlockNumber_ = 5;
+  uint64 FileBlockNumber_total_ = 6;
+  uint64 FileBlockSize_ = 7;
+  uint64 FileSize_total_ = 8;
+
+  string FileName_ = 9;
+  bytes FileBlockBuffer_ = 10;
+}
+
+message RecvFinishMsg{
+  string server_type = 1;
+  uint32 sTID = 2;
+  uint32 dTID = 3;
+
+  string FileName = 4;
+  string StrMsg = 5;
+  uint64 intMsg = 6;
+  double dblMsg = 7;
+  
+}
+

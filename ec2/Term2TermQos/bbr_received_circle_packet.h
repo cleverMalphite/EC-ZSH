@@ -1,0 +1,151 @@
+#pragma once
+
+//
+
+#include <vector>
+#include "../SpeedControl/QosStructInterfaceInfo.h"
+#include "../MRUDP/AbstractStorage_H/AbstractStorage.h"
+#include "bbr_skiplist.h"
+#include "bbr_controller.h"
+#include "../NetCombTransfer/CNetTerminalManager.h"
+#include "../MRUDP/AbstractStorage_H/MemoryPartStorage.h"
+/**
+ * 用来标志循环队列队首队尾元素状态
+ */
+//enum Qos_QOS_CircularDataQueueIndexStatus
+//{
+//	/* 分以下几种情况：
+//	* 1. 队列首索引比队列尾索引小；
+//	* 2. 队列首索引比队列尾索引大；
+//	* 3. 队列首索引与队列尾索引相等，且队列有效长度为0；
+//	* 4. 队列首索引与队列尾索引相等，且队列有效长度为队列容量大小；
+//	* 5. 索引错误状态（不属于上述状态之一）
+//	*/
+//	QOS_Queue_Head_Index_Less_Than_Queue_Tail_Index,
+//	QOS_Queue_Head_Index_Greater_Than_Queue_Tail_Index,
+//	QOS_Queue_Head_Index_Equal_To_Queue_Tail_Index_Size_Full,
+//	QOS_Queue_Head_Index_Equal_To_Queue_Tail_Index_Size_Zero,
+//	QOS_Wrong_Head_Tail_Index_Status
+//};
+
+/**
+ * 这是一个循环队列类
+ */
+class ReceivdCircularDataQueue
+{
+public:
+    ReceivdCircularDataQueue(/*DWORD capacity*//*DWORD dSelfTermId, DWORD dRemoteTermId*/)
+    {
+        m_queue_capacity = QOS_CYCLEFILE_CAPACITY;
+        //用vector开辟数组
+        m_queue_array.resize(m_queue_capacity);
+        //m_storage = make_shared<MemoryStorage>(m_queue_capacity);//TODO 按照配置文件配置存取机制
+        //获取配置文件项
+        //m_d_scan_next_queue_head_for_retransfer = GetIntegerKeyIni("MRUDP", "ScanNextQueueHeadForRetransfer", 50);
+        //m_d_timestamp_diff_threshold = GetIntegerKeyIni("MRUDP", "TimestampDiffThreshold", 300);
+        //m_d_self_term_id = dSelfTermId;
+        //m_d_remote_term_id = dRemoteTermId;
+
+        //初始化数组
+        for (DWORD i = 0; i < m_queue_capacity; i++)
+        {
+            m_queue_array[i] = std::make_shared<RemoteToSelfQosInfo>();
+        }
+        pthread_mutex_init(&m_cs, nullptr);
+        //InitializeCriticalSection(&m_data_tmp_queue_cs);
+    };
+
+    virtual ~ReceivdCircularDataQueue()
+    {
+        pthread_mutex_destroy(&m_cs);
+        //DeleteCriticalSection(&m_data_tmp_queue_cs);
+    }
+    DWORD m_queue_size = 0;				//循环队列当下有效的元素数目
+private:
+    DWORD m_queue_capacity = 0;	//循环队列的容量
+    DWORD m_queue_head = 0;			//循环队列当下的队首索引
+    DWORD m_queue_tail = 0;			//循环队列当下的队尾索引
+
+    std::vector<shared_ptr<RemoteToSelfQosInfo> > m_queue_array;	//用来存储循环队列数据的数组
+    //shared_ptr<AbstractStorage> m_storage;	//用来随机存取数据
+    pthread_mutex_t m_cs;			//用来进行临界区控制
+    //DWORD m_d_scan_next_queue_head_for_retransfer = 0;
+    //DWORD m_d_timestamp_diff_threshold = GetIntegerKeyIni("MRUDP", "TIMESTAMP_DIFF_THRESHOLD", 50);	//如果扫描到的重传包与收到FACK时的包相差超过此阈值则重传（毫秒）
+    //DWORD m_d_self_term_id = 0;	//本端ID
+    //DWORD m_d_remote_term_id = 0; //对端ID
+    //std::shared_ptr<Force_ACK_Message> m_force_ack_message_we_send_last_time = make_shared<Force_ACK_Message>();		//存储本端作为接收端发送的上一个ACK
+    //const DWORD RUDP_CYCLEFILE_CAPACITY = GetIntegerKeyIni("MRUDP", "RUDP_CYCLEFILE_CAPACITY", 1000);
+    const DWORD QOS_CYCLEFILE_CAPACITY = 65530;
+    //std::queue<shared_ptr<ReliableUdpData> > m_queue_data_tmp;				//暂存接收到的数据
+    //CRITICAL_SECTION m_data_tmp_queue_cs;						//暂存接收数据 的临界区
+    //void DealReceiveData();	//处理暂存接收数据队列中的数据
+
+public:
+    /**
+     * 向数组中添加一个元素，如果成功添加则返回true，否则返回false
+     */
+    //bool AddItem(shared_ptr<packet_feedback> p_item);
+    bool Qos_DealSingleReceiveData( shared_ptr<RemoteToSelfQosInfo> data);	//处理暂存数据接收队列中的单个元素
+    bool Qos_SetHeadIndex(DWORD dHeaderIndex);
+    DWORD Qos_GetTailIndex() { return m_queue_tail; }
+    DWORD QOS_GetDistance_dIndex_to_tail(DWORD dIndex);
+    /** 
+     * 处理接收到的FACK，返回重发的数据包数目
+     */
+    //DWORD OnRecvMessageFromRecvTerm(shared_ptr<Force_ACK_Message> force_ack_message);
+
+    //bool OnRecvDataFromLowerLayers(shared_ptr<ReliableUdpData> p_data);
+
+    /**
+     * 返回第dIndex索引对应的字节序列，及其长度dDataLength
+     */
+    //shared_ptr<BYTE> SendDataByIndex(const DWORD dIndex, DWORD& dDataLength) { return m_storage->GetDataByIndex(dIndex, dDataLength); }
+
+    /**
+     * 将接收队列里的数据交付给上层模块，并生成FACK
+     */
+    //shared_ptr<Force_ACK_Message> TraverseForceACK(DWORD dTermId);
+private:
+
+    /**
+     * 从数组中按照索引返回某个元素
+     */
+    shared_ptr<RemoteToSelfQosInfo> Qos_GetItemByIndex(DWORD dIndex);
+
+    /**
+     * 根据接收到的FACK设置数据发送队列队首元素的索引，dIndex必须在循环队列的有效范围内
+     * 此函数旨在缩小循环队列有效范围的大小
+     */
+    //bool SetHeadIndex(shared_ptr<const bbr_feedback_msg_t> p_feedback_message);
+
+    /**
+     * 在遍历本地接收队列生成ACK时使用，更改数据接收队列的索引
+     */
+
+
+    /**
+     * 直接设置队尾元素的索引，dIndex必须不在循环队列的有效范围内或者与前队尾元素索引相等，但是必须在循环队列的可能范围内（由容量决定）
+     * 此函数旨在扩大循环队列有效范围的大小，譬如当做数据接收循环队列时接收到对端发来的新数据包
+     */
+    //bool SetTailIndex(DWORD dIndex);
+
+    /**
+     * 按照参数的索引值，将相应的元素放入数组
+     */
+    //bool SetItemByIndex(DWORD dIndex, shared_ptr<packet_feedback> p_item);
+
+    /**
+     * 如果参数在队列范围内（不包括tail序号），返回true，否则返回false
+     */
+    bool Qos_IsIndexInValid(DWORD dIndex);
+
+
+
+    //void SetElementNotReceiveByIndex(DWORD dIndex) { m_queue_array[dIndex]->SetNotReceive(); }
+private:
+    /**
+     * 内部工具函数，判断循环队列队首队尾索引的状态，注意此函数并不是线程安全的，只用作内部使用
+     */
+    QOS_CircularDataQueueIndexStatus Qos_GetStatusValidQueue();
+};
+
