@@ -32,3 +32,23 @@ qrc_*.cpp
 *.tmp
 *.swp
 .DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.user
+*.user.*
+*.qtc
+
+# CMake/Ninja
+CMakeUserPresets.json
+CMakePresets.json
+build.ninja
+.ninja_deps
+.ninja_log
+
+# Qt cache
+moc_predefs.h
+
+# OS
+Thumbs.db

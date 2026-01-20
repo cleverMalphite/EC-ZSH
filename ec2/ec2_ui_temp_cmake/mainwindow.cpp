@@ -118,52 +118,22 @@ void MainWindow::init(){
         qDebug() << "Signal connected to updateSendTable";
     }
     //视频相关操作
-//     {
-//         isLocalPlayer= getBoolFromIni("Video","isLocalPlayer",true);
-////         if(!isLocalPlayer){
-//////             connect(temppage,&tempPage::askVideoTrans,this,&MainWindow::handleVideoTrans);
-////
-//
-//
-//             videoSender=new VideoSender();
-//             ui->sendVideo_layout->addWidget(videoSender);
-
-//初始化展示图片
-
-    QString picturePath("../ec2_ui_temp_cmake/resources/picture1.jpeg");
-    QImage default_image;
-    if(!default_image.load(picturePath)){
-        QFile pictureFile_send(picturePath);
-        if(!pictureFile_send.open(QIODevice::ReadOnly)){
-            cout<<"打开图片文件失败！"<<endl;
-        }else{
-            default_image.loadFromData(pictureFile_send.readAll());
-        }
-
+    {
+        // 替换原本的 ResizableLabel 为 VideoSender/VideoReceiver
+        // Remove existing placeholders first if necessary, or just overwrite the layout content
+        
+        // Sender Side
+        videoSender = new VideoSender(this);
+        videoSender->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        videoSender->setMaximumHeight(260);
+        ui->sendVideo_layout->addWidget(videoSender);
+        
+        // Receiver Side
+        videoReceiver = new VideoReceiver(this);
+        videoReceiver->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        videoReceiver->setMaximumHeight(260);
+        ui->recvVideo_layout->addWidget(videoReceiver);
     }
-    videoSender=new ResizableLabel();
-    videoSender->setImage(default_image);
-    videoSender->setStyleSheet("QLabel{background-color:rgb(0,0,0);}");
-    videoSender->setAlignment(Qt::AlignCenter);
-    //sendPic_label->setStyleSheet("QLabel{border: 2px solid black;}");
-    ui->sendVideo_layout->addWidget(videoSender);
-
-
-    QString picturePath_recv("../ec2_ui_temp_cmake/resources/picture2.jpeg");
-    QImage default_image_recv;
-    if(!default_image_recv.load(picturePath_recv)){
-        QFile pictureFile_recv(picturePath_recv);
-        if(!pictureFile_recv.open(QIODevice::ReadOnly)){
-            cout<<"打开图片文件失败！"<<endl;
-        }else{
-            default_image_recv.loadFromData(pictureFile_recv.readAll());
-        }
-    }
-    videoReceiver=new ResizableLabel();
-    videoReceiver->setImage(default_image_recv);
-    videoReceiver->setAlignment(Qt::AlignCenter);
-    videoReceiver->setStyleSheet("QLabel{background-color:rgb(0,0,0);}");
-    ui->recvVideo_layout->addWidget(videoReceiver);
 
 
      //传输速率曲线初始化
@@ -216,45 +186,24 @@ void MainWindow::init(){
 
     // //图片初始化
     {
-    //初始展示默认图片
-    QString picturePath("../ec2_ui_temp_cmake/resources/picture3.jpeg");
-    QImage default_image;
-    if(!default_image.load(picturePath)){
-        QFile pictureFile_send(picturePath);
-        if(!pictureFile_send.open(QIODevice::ReadOnly)){
-            cout<<"打开图片文件失败！"<<endl;
-        }else{
-            default_image.loadFromData(pictureFile_send.readAll());
-        }
-
-    }
         sendPic_label=new ResizableLabel();
-        sendPic_label->setImage(default_image);
         sendPic_label->setStyleSheet("QLabel{background-color:rgb(0,0,0);}");
         sendPic_label->setAlignment(Qt::AlignCenter);
-        //sendPic_label->setStyleSheet("QLabel{border: 2px solid black;}");
+        sendPic_label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        sendPic_label->setMaximumHeight(260);
         ui->sendPicture_layout->addWidget(sendPic_label);
+        // Default hidden to allow video area expansion
+        sendPic_label->setVisible(false);
 
-        /*QDir currentDir;
-        QString currentPath = currentDir.currentPath();
-        std::cout << "[DEBUG] <> Current Path: " <<  currentPath.toStdString()<<std::endl ;*/
-        QString picturePath_recv("../ec2_ui_temp_cmake/resources/picture4.jpeg");
-        QImage default_image_recv;
-        if(!default_image_recv.load(picturePath_recv)){
-            QFile pictureFile_recv(picturePath_recv);
-            if(!pictureFile_recv.open(QIODevice::ReadOnly)){
-                cout<<"打开图片文件失败！"<<endl;
-            }else{
-                default_image_recv.loadFromData(pictureFile_recv.readAll());
-            }
-        }
         recvPic_label=new ResizableLabel();
-        recvPic_label->setImage(default_image_recv);
         recvPic_label->setAlignment(Qt::AlignCenter);
         recvPic_label->setStyleSheet("QLabel{background-color:rgb(0,0,0);}");
+        recvPic_label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        recvPic_label->setMaximumHeight(260);
         ui->recvPicture_layout->addWidget(recvPic_label);
-
-        }
+        // Default hidden to allow video area expansion
+        recvPic_label->setVisible(false);
+    }
 
 }
 
@@ -672,6 +621,7 @@ void MainWindow::calculateTransSpeed() {
 
 
 
+
 void MainWindow::handlePrePicture(int picFlag) {
     //先获取当前选中的行号，然后找到对应的文件路径，判断文件能否打开为图片，不能则提示信息，可以则直接更换图片
     switch (picFlag) {
@@ -694,42 +644,23 @@ void MainWindow::handlePrePicture(int picFlag) {
                 if(isFind){
                     QImage image;
                     if(!image.load(QString::fromStdString(filePath))){
-                        /*QFile pictureFile_send(QString::fromStdString(filePath));
-                        if(!pictureFile_send.open(QIODevice::ReadOnly)){
-                            *//*QMessageBox msgBox(QMessageBox::Information,"提示信息","打开图片失败！",QMessageBox::Ok,this);
-                            msgBox.setWindowFlags(this->windowFlags()&~Qt::WindowCloseButtonHint);
-                            msgBox.exec();*//*
-                            cout<<"打开文件失败！"<<endl;
-                            return;
-                        }else{
-                            image.loadFromData(pictureFile_send.readAll());
-                        }*/
                             cout<<"文件打开失败！"<<endl;
                         return;
                     }
-                    //sendPic_label->clear();
                     sendPic_label->setImage(image);
-                    //cout<<"videoSender width:"<<videoSender->width()<<endl;
-                    //this->resize(this->width(),this->height());
                     int tmp_width = sendPic_label->width();
                     int tmp_height = sendPic_label->height();
                     sendPic_label->resize(tmp_width-1,tmp_height-1);
                     sendPic_label->resize(tmp_width+1,tmp_height+1);
+                    
+                    // Show label if it was hidden
+                    if(!sendPic_label->isVisible()) sendPic_label->setVisible(true);
 
-
-                    //sendPic_label->repaint();
-                    //sendPic_label->update();
                 }else{
-                    //提示该图片不存在
-                    /*QMessageBox msgBox(QMessageBox::Information,"提示信息","该图片不存在！",QMessageBox::Ok);
-                    msgBox.setWindowFlags(this->windowFlags()&~Qt::WindowCloseButtonHint);*/
                     cout<<"该图片不存在！"<<endl;
                     return;
                 }
             }else{
-                //提示要先选中图片
-                /*QMessageBox msgBox(QMessageBox::Information,"提示信息","请先选中要展示的图片！",QMessageBox::Ok);
-                msgBox.setWindowFlags(this->windowFlags()&~Qt::WindowCloseButtonHint);*/
                 cout<<"请先选中要展示的图片！"<<endl;
                 return;
             }
@@ -755,16 +686,6 @@ void MainWindow::handlePrePicture(int picFlag) {
                 if(isFind){
                     QImage image;
                     if(!image.load(QString::fromStdString(filePath))){
-                        /*QFile pictureFile_send(QString::fromStdString(filePath));
-                        if(!pictureFile_send.open(QIODevice::ReadOnly)){
-                            *//*QMessageBox msgBox(QMessageBox::Information,"提示信息","打开图片失败！",QMessageBox::Ok,this);
-                            msgBox.setWindowFlags(this->windowFlags()&~Qt::WindowCloseButtonHint);
-                            msgBox.exec();*//*
-                            cout<<"打开图片失败！"<<endl;
-                            return ;
-                        }else{
-                            image.loadFromData(pictureFile_send.readAll());
-                        }*/
                             cout<<"打开文件失败！"<<endl;
                             return;
                     }
@@ -773,17 +694,15 @@ void MainWindow::handlePrePicture(int picFlag) {
                     int tmp_height = recvPic_label->height();
                     recvPic_label->resize(tmp_width-1,tmp_height-1);
                     recvPic_label->resize(tmp_width+1,tmp_height+1);
+                    
+                    // Show label if it was hidden
+                    if(!recvPic_label->isVisible()) recvPic_label->setVisible(true);
+
                 }else{
-                    //提示该图片不存在
-                    /*QMessageBox msgBox(QMessageBox::Information,"提示信息","该图片不存在！",QMessageBox::Ok);
-                    msgBox.setWindowFlags(this->windowFlags()&~Qt::WindowCloseButtonHint);*/
                     cout<<"该图片不存在！"<<endl;
                     return;
                 }
             }else{
-                //提示要先选中图片
-                /*QMessageBox msgBox(QMessageBox::Information,"提示信息","请先选中要展示的图片！",QMessageBox::Ok);
-                msgBox.setWindowFlags(this->windowFlags()&~Qt::WindowCloseButtonHint);*/
                 cout<<"请先选中要展示的图片！"<<endl;
                 return;
             }

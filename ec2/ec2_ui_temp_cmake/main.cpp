@@ -21,12 +21,19 @@ void EXIT(int sig);
 	buffer=getcwd(NULL,0);
 	cout<<"[current filePath:] "<<buffer<<endl;
 
-	if(*argv[1]=='2'){
+    if (argc < 2 || argv[1] == nullptr) {
+        gUiRole = 1;
+        System_start("../SysConfig101.ini", false);
+    } else if (*argv[1] == '2') {
+        gUiRole = 2;
 		System_start("../SysConfig102.ini",false);//recv
-	}
-	if(*argv[1]=='1'){
+	} else if (*argv[1] == '1') {
+        gUiRole = 1;
 		System_start("../SysConfig101.ini",false);//send
-	}
+	} else {
+        gUiRole = 1;
+        System_start("../SysConfig101.ini", false);
+    }
 
 	cout<<"注册信息回调！"<<endl;
 	//注册信息回调

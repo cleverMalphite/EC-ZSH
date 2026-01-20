@@ -11,6 +11,7 @@ SET(SRC_SPEED_CONTROL
   Term2TermTransmission.cpp
   SpeedControlManager.cpp 
   SpeedControlCallBackFunc.cpp
+  ../Util/VideoRtp_callback.cpp
 )
 
 add_library(SpeedControl ${SRC_SPEED_CONTROL} )

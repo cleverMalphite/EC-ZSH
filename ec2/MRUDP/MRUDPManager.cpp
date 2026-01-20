@@ -8,10 +8,12 @@
 #include <queue>
 #include <memory>
 #include <utility>
+#include <iostream>
 #include "Transfer_H/ReliableForceSpeedMessage.h"
 #include "Transfer_H/ReliableForceAdjustBandWidthMessage.h"
 
 #include "../Util/SystemTimeFunc.h"
+#include "../Util/VideoRtp_callback.h"
 
 #include <thread>
 
@@ -75,6 +77,31 @@ namespace MRUDP {
                                       int64_t &fb_send_time) {
         if (dwLength <= 0) {
             return true;
+        }
+        const BYTE *raw = pBuffer.get();
+        if (raw && dwLength >= 13 && raw[0] == 0x00 && ((raw[1] & 0xC0) == 0x80) && g_video_rtp_recv_callback) {
+            static uint64_t s_fwd_pkts = 0;
+            static uint64_t s_fwd_bytes = 0;
+            static int64_t s_last_ms = 0;
+            s_fwd_pkts += 1;
+            s_fwd_bytes += static_cast<uint64_t>(dwLength);
+            const int64_t now_ms = static_cast<int64_t>(GetTickCount());
+            if (s_last_ms == 0) s_last_ms = now_ms;
+            const int64_t dt = now_ms - s_last_ms;
+            if (dt >= 1000) {
+                const uint64_t pps = (s_fwd_pkts * 1000ULL) / static_cast<uint64_t>(dt);
+                const uint64_t kbps = (s_fwd_bytes * 8ULL) / static_cast<uint64_t>(dt);
+                std::cout << "[VideoRtp] via MRUDP from=" << dwTID
+                          << " pps=" << pps
+                          << " kbps=" << kbps
+                          << std::endl;
+                s_fwd_pkts = 0;
+                s_fwd_bytes = 0;
+                s_last_ms = now_ms;
+            }
+            long int rt = static_cast<long int>(recvtime);
+            long int ft = static_cast<long int>(fb_send_time);
+            return g_video_rtp_recv_callback(dwTID, pBuffer, dwLength, rt, ft);
         }
      /**
 		 * 由于本模块通过pBuffer的首字节来辨析数据，所以不需要区分dwTID

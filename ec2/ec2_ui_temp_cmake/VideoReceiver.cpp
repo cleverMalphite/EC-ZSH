@@ -5,6 +5,8 @@
 #include <opencv2/highgui/highgui_c.h>
 #include <iostream>
 #include <time.h>
+#include <QVBoxLayout>
+#include <cstring>
 
 // decode
 #include <stdio.h>
@@ -13,25 +15,66 @@
 #include <sys/socket.h>
 #include "opencv2/opencv.hpp"
 
+#include "../GlobalMessage.h"
+#include "../SpeedControl/SpeedControlApi.h"
+#include "VideoRtp_callback.h"
 
 #include <list>
 #include <thread>
 #include <utility>
 #include <mutex>
 
+#include <QLabel>
+#include <QVBoxLayout>
+
 using namespace cv;
 
 //#define DEBUG_VIDEO_RECEIVER_
 //#define TEST_VIDEO_RECEIVER_
 
-long consumptiontime;
-long playframecount = 0;
+// GStreamer initialization helper
+static bool gst_initialized = false;
+static void ensure_gst_init() {
+    if (!gst_initialized) {
+        gst_init(nullptr, nullptr);
+        gst_initialized = true;
+    }
+}
 
+static VideoReceiver* g_video_receiver_instance = nullptr;
+
+static bool VideoReceiver_SpeedControlRecvDataCallback(DWORD dwTID,
+                                                       const std::shared_ptr<BYTE> &pBuffer,
+                                                       DWORD dwLength,
+                                                       long int &recvtime,
+                                                       long int &fb_send_time) {
+    // std::cout << "[DEBUG] Static Callback Triggered. Len=" << dwLength << " Instance=" << (void*)g_video_receiver_instance << std::endl;
+    if (!g_video_receiver_instance) {
+        std::cout << "[DEBUG] Instance is NULL!" << std::endl;
+        return true;
+    }
+    return g_video_receiver_instance->onSpeedControlRecvData(dwTID, pBuffer, dwLength, recvtime, fb_send_time);
+}
+
+static bool VideoReceiver_NetCombTransferMessageCallback(DWORD, bool) {
+    return true;
+}
+
+static bool VideoReceiver_NetCombTransferBufferCallback(DWORD dwTID,
+                                                        const std::shared_ptr<BYTE> &pBuffer,
+                                                        DWORD dwLength,
+                                                        bool bMsg,
+                                                        int64_t packet_recv_timeStamp) {
+    if (!g_video_receiver_instance) {
+        return true;
+    }
+    return g_video_receiver_instance->onNetCombTransferBuffer(dwTID, pBuffer, dwLength, bMsg, packet_recv_timeStamp);
+}
 
 VideoReceiver::VideoReceiver(QWidget *parent)
     : QWidget(parent)
-    //, ui(new Ui::VideoReceiver)
 {
+    ensure_gst_init();
 
     /*udp decode etc. init*/
 #ifdef DEBUG_VIDEO_RECEIVER_
@@ -41,64 +84,66 @@ VideoReceiver::VideoReceiver(QWidget *parent)
 //    this->setWindowFlags(this->windowFlags()&~Qt::WindowCloseButtonHint);  //隐藏窗口的叉号
 
     //init param
-#ifdef DEBUG_VIDEO_RECEIVER_
-    std::cout<<"VideoReceiver-init-2"<<std::endl;
-#endif
-    int info[3];
-    int flag = 0;
-    int ret = 0;
-    recv_width = video_cols;
-    recv_height = video_rows;
-    recv_channel = video_chans;
-    recv_bufferSize = recv_width * recv_height * recv_channel;
-    flag = 1;
-
     fps = 30;
+    
+    //init timer for appsink polling
+    timer_appsink = new QTimer(this);
+    connect(timer_appsink, SIGNAL(timeout()), this, SLOT(on_timer_check_appsink()));
+    timer_feedback = new QTimer(this);
+    connect(timer_feedback, SIGNAL(timeout()), this, SLOT(on_timer_send_feedback()));
 
+    //init widget
+    // Let layout control size
+    // this->resize(800, 600);
+    
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    this->playerWidget = new PlayerWidget(this);
+    this->playerWidget->setLockLastImg(true);
+    
+    QLabel *statusLabel = new QLabel("等待信号 (Waiting for Signal)...", this->playerWidget);
+    statusLabel->setStyleSheet("QLabel { color: white; font-size: 20px; background-color: rgba(0,0,0,100); padding: 10px; border-radius: 5px; }");
+    statusLabel->setAlignment(Qt::AlignCenter);
+    statusLabel->setObjectName("statusLabel");
+    statusLabel->setVisible(true);
 
+    QVBoxLayout *overlayLayout = new QVBoxLayout(this->playerWidget);
+    overlayLayout->setContentsMargins(0, 0, 0, 0);
+    overlayLayout->addStretch();
+    overlayLayout->addWidget(statusLabel, 0, Qt::AlignCenter);
+    overlayLayout->addStretch();
+    statusLabel->raise();
+    
+    mainLayout->addWidget(playerWidget);
+    setLayout(mainLayout);
+
+    frameClock.start();
+    lastFrameAtMs = -1;
+    showWaitingAfterMs = 500;
+    m_rxRawPktsWindow = 0;
+    m_rxRtpPktsWindow = 0;
+    m_rxRtpBytesWindow = 0;
+    m_rxStatClock.start();
+
+    if (gUiRole == 2) {
+        g_video_receiver_instance = this;
+        static bool s_speedcontrol_cb_registered = false;
+        if (!s_speedcontrol_cb_registered) {
+            Register_SpeedControl_RecvDataCallBack(VideoReceiver_SpeedControlRecvDataCallback);
+            s_speedcontrol_cb_registered = true;
+        }
+        Register_VideoRtp_RecvDataCallBack(VideoReceiver_SpeedControlRecvDataCallback);
+        startDeepIntegrationPipeline();
+        m_feedbackClock.start();
+        timer_feedback->start(200);
+    }
 }
 
 void VideoReceiver::init(){
-
-    /*qt ui ready*/
-
-    //start readFrame, start playerWidget
-    //this->timer->start(1000/fps);
-    this->playerWidget->startPlay(fps);
-    this->timer1->start(1);
-    this->timer2->start(1);
-
-    this->timer_test->start(1000);
-
-    this->is_play = true;
-
-    //rate statistic
-    sta_first_get = false;
-    sta_time_pass = 0;
-
-    sta_data_sum = 0;
-    sta_data_rate = 0;
-
-    sta_pic_sum = 0;
-
-
-    //set PlayerWidget
-    //setCentralWidget(this);
-    cv::Mat imageTemp = cv::Mat::zeros(recv_height, recv_width, CV_8UC3);
-    this->ShowImage(imageTemp);
-
-    printf("[init] end\n");
-
-    //houlc record
-//    record_fp = fopen(record_filename.c_str(), "wb");
+    // Legacy init - kept empty or minimal as logic moved to constructor
 }
 
 void VideoReceiver::reset() {
-    next_packetIndex=0;
-    unFindPakcetCount=0;
-    mtx_list.lock();
-    packetDataAndIndexs.clear();
-    mtx_list.unlock();
+    // Legacy reset logic
 }
 
 
@@ -107,423 +152,468 @@ void VideoReceiver::ShowImage(cv::Mat& mat)
 #ifdef DEBUG_VIDEO_RECEIVER_
     printf("show Image...\n");
 #endif
-
-    //statistic pic sum
-    qint64 mat_rows = mat.rows;
-    qint64 mat_cols = mat.cols;
-    qint64 mat_chan = mat.channels();
-    qint64 mat_elemSize = mat.elemSize();//1 for CV_8U, 4 for CV_32F
-    double mat_size_B = (double)mat_rows * mat_cols * mat_chan * mat_elemSize;
-    double mat_size_Mb =  mat_size_B * 8 / 1000 / 1000;
-    sta_pic_sum  = sta_pic_sum + mat_size_Mb;
-
     this->playerWidget->pushFrame2Show(mat);
-
 }
 
 
 
 VideoReceiver::~VideoReceiver()
 {
-    on_pushButton_return_clicked();
-    packetDataAndIndexs.clear();
+    stopGstPipeline();
+    
+    // on_pushButton_return_clicked(); // Removed as UI buttons are removed
     delete playerWidget;
     exit_flag=true;
-    //delete timer;
-    delete timer1;
-    delete timer2;
-
-    delete timer_test;
-//    delete timer3;
-    //delete ui;
-    //close decoder
-    ffmpegobj.Ffmpeg_Decoder_Close();
-
-//    fclose(record_fp);
+    delete timer_appsink;
+    if (g_video_receiver_instance == this) {
+        g_video_receiver_instance = nullptr;
+    }
+    // Legacy cleanup
+    // ffmpegobj.Ffmpeg_Decoder_Close();
 }
 
 void VideoReceiver::on_pushButton_return_clicked() {
-    emit this->sendEndCommand();
+    // emit this->sendEndCommand(); // Receiver is passive now
     endRecvVideo();
 }
 
-//void startSendVideo(QString remoteAddr);
-//void sendEndCommand();
-//void endVideoTrans();
-
 void VideoReceiver::startRecvVideo() {
-    if(this->is_play==false){
-        is_play = true;
-        //timer->start(1000/fps);   //show frame
-        timer1->start(1);         //decode frame
-        timer2->start(1);         //udp recv
-        this->playerWidget->startPlay(fps);
-
-        timer_test->start(1000);
-    }
+    // Managed by constructor now
 }
 
 void VideoReceiver::endRecvVideo() {
-    if(is_play==true){
-        is_play = false;
-
-        //timer->stop();
-        timer1->stop(); timer2->stop();
-        this->playerWidget->stopPlay();
-
-        timer_test->stop();
-
-        mtx_list.lock();
-        list_pbuff.clear();
-        packetDataAndIndexs.clear();
-        mtx_list.unlock();
-
-        mtx_rgblist.lock();
-        for(int i = 0; i < list_matbuff.size(); i++){
-            delete list_matbuff.front();
-            list_matbuff.front() = nullptr;
-            list_matbuff.pop_front();
-        }
-        mtx_rgblist.unlock();
-    }
-//    this->setVisible(false);
+    // Managed by destructor now
 }
 
-void VideoReceiver::print_test()
-{
-#ifdef TEST_VIDEO_RECEIVER_
-    sta_time_pass = sta_timer.elapsed();
-    //qint64 sta_time_curr = QDateTime::currentMSecsSinceEpoch();
-    //sta_time_pass = sta_time_curr  - sta_time_start;
-    if(sta_time_pass == 0) return ;
+void VideoReceiver::startDeepIntegrationPipeline() {
+    if (pipeline) {
+        stopGstPipeline();
+    }
 
-    double sta_time_pass_dw = sta_time_pass;
-    double sta_time_pass_s_dw = sta_time_pass_dw / 1000;
-    double sta_data_sum_dw = sta_data_sum;
+    lastFrameAtMs = -1;
+    if (this->playerWidget) {
+        QLabel *statusLabel = this->playerWidget->findChild<QLabel *>("statusLabel");
+        if (statusLabel) statusLabel->setVisible(true);
+    }
 
-    double sta_data_sum_b_dw = sta_data_sum_dw * 8;
-    double sta_data_sum_kb_dw = sta_data_sum_b_dw / 1000;
-    double sta_data_sum_Mb_dw = sta_data_sum_kb_dw / 1000;
+    const std::string pipeline_str =
+        "appsrc name=rtp_src is-live=true do-timestamp=true format=time block=false "
+        "caps=\"application/x-rtp,media=video,encoding-name=H264,payload=96,clock-rate=90000\" ! "
+        "rtpjitterbuffer latency=200 drop-on-latency=true do-lost=true mode=slave ! "
+        "rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=BGR ! "
+        "appsink name=mysink drop=true max-buffers=1 sync=false";
 
-    double sta_data_rate_Bpms = sta_data_sum_dw / sta_time_pass_dw ;
-    double sta_data_rate_bps = sta_data_sum_b_dw / sta_time_pass_s_dw;
-    double sta_data_rate_kbps = sta_data_sum_kb_dw / sta_time_pass_s_dw;
+    GError *error = nullptr;
+    pipeline = gst_parse_launch(pipeline_str.c_str(), &error);
+    if (error) {
+        std::cerr << "[VideoReceiver] Error creating pipeline: " << error->message << std::endl;
+        g_error_free(error);
+        return;
+    }
 
-    sta_data_rate = sta_data_sum_Mb_dw / sta_time_pass_s_dw ;
+    appsrc = gst_bin_get_by_name(GST_BIN(pipeline), "rtp_src");
+    appsink = gst_bin_get_by_name(GST_BIN(pipeline), "mysink");
 
-    double sta_pic_rate_Mbps = sta_pic_sum / sta_time_pass_s_dw;
+    if (!appsrc || !appsink) {
+        std::cerr << "[VideoReceiver] Could not get rtp_src/mysink from pipeline" << std::endl;
+    }
 
-    printf("/============/\n");
-    // 获取当前时间
-    QDateTime currentTime = QDateTime::currentDateTime();
-    //QString currentDateTimeString = currentTime.toString();// 使用Qt默认的短日期和时间格式（例如："2023-03-17 15:43:21"）
-    QString currentDateTimeString = currentTime.toString("yyyy-MM-dd HH:mm:ss");
-    std::cout<<"[TEST] TEST TIME : " <<  currentDateTimeString.toStdString() <<std::endl;
-    std::cout<<"[TEST] RECV PASS I : "<< sta_time_pass <<" ms" <<std::endl;
-    printf("[TEST] RECV PASS:%lf ms\n", sta_time_pass_dw);
-    std::cout<<"[TEST] RECV PASS dw : "<< sta_time_pass_s_dw <<" s" <<std::endl;
+    GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    if (ret == GST_STATE_CHANGE_FAILURE) {
+        std::cerr << "[VideoReceiver] Unable to set the pipeline to the PLAYING state." << std::endl;
+        gst_object_unref(pipeline);
+        pipeline = nullptr;
+        if (appsrc) {
+            gst_object_unref(appsrc);
+            appsrc = nullptr;
+        }
+        if (appsink) {
+            gst_object_unref(appsink);
+            appsink = nullptr;
+        }
+        return;
+    }
 
-    printf("/----------/\n");
-    printf("[TEST] RECV SUM:%lf B\n", sta_data_sum_dw);
-    printf("[TEST] RECV SUM:%lf b\n", sta_data_sum_b_dw);
-    printf("[TEST] RECV SUM:%lf kb\n", sta_data_sum_kb_dw);
-    printf("[TEST] RECV SUM:%lf Mb\n", sta_data_sum_Mb_dw);
-
-
-
-    printf("[TEST] DATA RATE:%lf Bpms\n", sta_data_rate_Bpms);
-    printf("[TEST] DATA RATE:%lf bps\n", sta_data_rate_bps);
-    printf("[TEST] DATA RATE:%lf kbps\n", sta_data_rate_kbps);
-    printf("[TEST] DATA RATE:%lf Mbps\n", sta_data_rate);
-
-    printf("[TEST] VIDEO TRNAS SUM:%lf Mb\n", sta_pic_sum);
-    printf("[TEST] VIDEO TRNAS RATE:%lf Mbps\n", sta_pic_rate_Mbps);
-#endif
+    timer_appsink->start(33);
+    this->playerWidget->startPlay(fps);
+    this->is_play = true;
 }
 
-void VideoReceiver::onRecvVideoData(QByteArray data, unsigned int dataLength,unsigned int packetIndex)
-{
-//    cout<<"[udp_recv_func] timer2 is excuting"<<endl;
-    //while(1) {
-    if(!is_play)
-    {
-
-        printf("[WARN] recv_func::is_play=false\n");
-
-        return ;
-        //continue;
+void VideoReceiver::startGstPipeline(int port) {
+    if (pipeline) {
+        stopGstPipeline();
+    }
+    lastFrameAtMs = -1;
+    if (this->playerWidget) {
+        QLabel *statusLabel = this->playerWidget->findChild<QLabel *>("statusLabel");
+        if (statusLabel) statusLabel->setVisible(true);
     }
 
-//    fwrite(reinterpret_cast<unsigned char*>(data.data()), dataLength, 1, record_fp);
+    // Pipeline description:
+    // udpsrc port=5000 caps="application/x-rtp,media=video,encoding-name=H264,payload=96" ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=BGR ! appsink name=mysink
+    // Note: 'udpsrc' will block/wait for data. 'avdec_h264' handles stream interruptions/resumes automatically.
+    
+    std::string pipeline_str = 
+        "udpsrc address=127.0.0.1 port=" + std::to_string(port) + " caps=\"application/x-rtp,media=video,encoding-name=H264,payload=96\" ! "
+        "rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=BGR ! appsink name=mysink drop=true max-buffers=1 sync=false";
 
-//    unsigned char* pdata=new unsigned char [dataLength];
-//    mempcpy(pdata,data.constData(),dataLength);
-//    fwrite(pdata, dataLength, 1, record_fp);
-//    delete[] pdata;
+    std::cout << "[VideoReceiver] Starting Zero-Touch pipeline on port " << port << ": " << pipeline_str << std::endl;
 
-    //usleep(1);
-    /*char * revBuffer = (char *)malloc(sizeof(char) * recv_bufferSize);
-    size_t ret = recvfrom(mSocketUdpServerInfo->serSocket, revBuffer, recv_bufferSize, 0,
-                          (sockaddr *)&mSocketUdpServerInfo->remoteAddr[0], &mSocketUdpServerInfo->nAddrLen[0]);*/
-    char* revBuffer=data.data();
-    unsigned int ret=dataLength;
-    if(ret==0){
-        cout<<"[udp_recv_func] recvfrom=0"<<endl;
+    GError *error = nullptr;
+    pipeline = gst_parse_launch(pipeline_str.c_str(), &error);
+    if (error) {
+        std::cerr << "[VideoReceiver] Error creating pipeline: " << error->message << std::endl;
+        g_error_free(error);
+        return;
     }
 
-    //statistic rate
-    if(ret>0 && sta_first_get==false)
-    {
-#ifdef TEST_VIDEO_RECEIVER_
-        printf("<>[DEBUG] sta timer start\n");
-#endif
-        sta_first_get=true;
-        sta_timer.start();
+    // Get appsink
+    appsink = gst_bin_get_by_name(GST_BIN(pipeline), "mysink");
+    if (!appsink) {
+        std::cerr << "[VideoReceiver] Could not get appsink from pipeline" << std::endl;
     }
 
-    if(ret>0){
-        sta_data_sum = sta_data_sum + ret;
-
-        if(sta_time_start == 0){
-            sta_time_start =QDateTime::currentMSecsSinceEpoch();
-#ifdef TEST_VIDEO_RECEIVER_
-            printf("<>[DEBUG] sta timer start||%ld ms\n", sta_time_start);
-#endif
-        }
+    // Start pipeline immediately
+    GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    if (ret == GST_STATE_CHANGE_FAILURE) {
+        std::cerr << "[VideoReceiver] Unable to set the pipeline to the PLAYING state." << std::endl;
+        gst_object_unref(pipeline);
+        pipeline = nullptr;
+        return;
     }
 
-
-#ifdef DEBUG_VIDEO_RECEIVER_
-    printf("[OK] recv ret = %d \n", ret);
-#endif
-
-
-    char * pbuf = (char *)malloc(sizeof(char) * ret + 1);
-    memset(pbuf, 0, ret + 1);
-    memcpy(pbuf, revBuffer, ret);
-
-
-
-//    free(revBuffer);
-    revBuffer = nullptr;
-    std::cout<<"recv packetIndex="<<packetIndex<<endl;
-
-    mtx_list.lock();
-    packetDataAndIndexs[packetIndex]=std::pair<char*,unsigned int>(pbuf,ret);
-//    list_pbuff.push_back(std::pair<char*, int>(pbuf, ret));
-    mtx_list.unlock();
-    //}
+    // Start local preview timer to pull frames
+    timer_appsink->start(33); // ~30fps
+    
+    this->playerWidget->startPlay(fps);
+    this->is_play = true;
 }
 
-/* end udp */
+void VideoReceiver::stopGstPipeline() {
+    if (pipeline) {
+        gst_element_set_state(pipeline, GST_STATE_NULL);
+        gst_object_unref(pipeline);
+        pipeline = nullptr;
+    }
+    if (appsrc) {
+        gst_object_unref(appsrc);
+        appsrc = nullptr;
+    }
+    if (appsink) {
+        gst_object_unref(appsink);
+        appsink = nullptr;
+    }
+    timer_appsink->stop();
+    if (timer_feedback) {
+        timer_feedback->stop();
+    }
+    this->playerWidget->stopPlay();
+    this->is_play = false;
+    lastFrameAtMs = -1;
+    if (this->playerWidget) {
+        QLabel *statusLabel = this->playerWidget->findChild<QLabel *>("statusLabel");
+        if (statusLabel) statusLabel->setVisible(true);
+    }
+}
 
-//thread func
-//void decode_show_func(Ffmpeg_Decoder& ffmpegobj)
-void VideoReceiver::decode_show_func()
-{
-//    cout<<"[decode_show_func] timer1 is excuting"<<endl;
-    //while(true){
-        //usleep(1);
-        if(packetDataAndIndexs.empty()) {
-            //usleep(5);
-#ifdef DEBUG_VIDEO_RECEIVER_
-            printf("[WARN] decode_func::lis_pbuff is empty!\n");
-#endif
-            return ;
-            //continue;
+void VideoReceiver::on_timer_check_appsink() {
+    if (!appsink) return;
+    
+    // Check bus messages first
+    if (pipeline) {
+        GstBus *bus = gst_element_get_bus(pipeline);
+        GstMessage *msg = gst_bus_pop(bus);
+        if (msg) {
+            switch (GST_MESSAGE_TYPE(msg)) {
+                case GST_MESSAGE_ERROR: {
+                    GError *err;
+                    gchar *debug;
+                    gst_message_parse_error(msg, &err, &debug);
+                    std::cerr << "[VideoReceiver] Pipeline Error: " << err->message << std::endl;
+                    g_error_free(err);
+                    g_free(debug);
+                    break;
+                }
+                case GST_MESSAGE_WARNING: {
+                    GError *err;
+                    gchar *debug;
+                    gst_message_parse_warning(msg, &err, &debug);
+                    std::cerr << "[VideoReceiver] Pipeline Warning: " << err->message << std::endl;
+                    g_error_free(err);
+                    g_free(debug);
+                    break;
+                }
+                case GST_MESSAGE_STATE_CHANGED:
+                    // Ignore state changes for now to avoid spam
+                    break;
+                default:
+                    // std::cout << "[VideoReceiver] Bus message: " << GST_MESSAGE_TYPE_NAME(msg) << std::endl;
+                    break;
+            }
+            gst_message_unref(msg);
         }
-//Houlc
-        time_t t;
-        time(&t);
-#ifdef DEBUG_VIDEO_RECEIVER_
-        printf("[FUNCTION] decode_show_func()\n");
-        printf("[TIME] %s\n", ctime(&t));
-        printf("[QSIZE] list_pbuff size: %d\n", list_pbuff.size());
-#endif
+        gst_object_unref(bus);
+    }
 
+    GstSample *sample = gst_app_sink_try_pull_sample(GST_APP_SINK(appsink), 10 * GST_MSECOND);
+    if (sample) {
+        GstBuffer *buffer = gst_sample_get_buffer(sample);
+        GstCaps *caps = gst_sample_get_caps(sample);
+        GstStructure *structure = gst_caps_get_structure(caps, 0);
+        
+        int width, height;
+        gst_structure_get_int(structure, "width", &width);
+        gst_structure_get_int(structure, "height", &height);
+        
+        GstMapInfo map;
+        gst_buffer_map(buffer, &map, GST_MAP_READ);
+        
+        // Convert to OpenCV Mat (BGR)
+        cv::Mat frame(height, width, CV_8UC3, (char*)map.data, cv::Mat::AUTO_STEP);
+        
+        // Deep copy because GStreamer buffer will be unref'd
+        cv::Mat frame_copy = frame.clone();
+        
+        gst_buffer_unmap(buffer, &map);
+        gst_sample_unref(sample);
+        
+        // Update UI
+        // Hide status label if visible
+        QLabel *statusLabel = this->playerWidget->findChild<QLabel *>("statusLabel");
+        if (statusLabel && statusLabel->isVisible()) {
+            statusLabel->setVisible(false);
+        }
+        lastFrameAtMs = frameClock.elapsed();
+        ShowImage(frame_copy);
+    } else {
+        if (gst_app_sink_is_eos(GST_APP_SINK(appsink))) {
+             std::cout << "[VideoReceiver] AppSink is EOS" << std::endl;
+        }
+        if (lastFrameAtMs < 0) {
+            QLabel *statusLabel = this->playerWidget->findChild<QLabel *>("statusLabel");
+            if (statusLabel && !statusLabel->isVisible()) {
+                statusLabel->setVisible(true);
+            }
+        }
+        // std::cout << "[VideoReceiver] No sample available" << std::endl;
+    }
+}
 
-        mtx_list.lock();
+bool VideoReceiver::onNetCombTransferBuffer(DWORD srcTID,
+                                            const std::shared_ptr<BYTE> &pBuffer,
+                                            DWORD dwLength,
+                                            bool bMsg,
+                                            int64_t) {
+    if (bMsg) {
+        return true;
+    }
+    if (!appsrc || !pBuffer || dwLength < 2) {
+        return true;
+    }
+    m_rxRawPktsWindow += 1;
+    if (m_expectedRemoteTID != 0 && srcTID != m_expectedRemoteTID) {
+        return true;
+    }
 
-        /*char* pbuff = list_pbuff.front().first;
-        int ilen = list_pbuff.front().second;*/
-
-        //找到正确序号的数据
-        if(packetDataAndIndexs.find(next_packetIndex)==packetDataAndIndexs.end()){
-            if(unFindPakcetCount<3){
-                unFindPakcetCount+=1;
-                mtx_list.unlock();
-                return;
-            }else{
-                unFindPakcetCount=0;
-                next_packetIndex+=1;
-                return;
+    auto process_typed_rtp = [&](DWORD remoteTID, const BYTE *typed, DWORD typed_len) -> bool {
+        if (!typed || typed_len < 2) {
+            return true;
+        }
+        if (typed[0] != 0x00) {
+            return true;
+        }
+        const DWORD rtp_len = typed_len - 1;
+        const BYTE *rtp = typed + 1;
+        if (rtp_len >= 12) {
+            const uint16_t seq = (static_cast<uint16_t>(rtp[2]) << 8) | static_cast<uint16_t>(rtp[3]);
+            if (m_hasSeq) {
+                const uint16_t delta = static_cast<uint16_t>(seq - m_lastSeq);
+                if (delta > 0 && delta < 0x8000) {
+                    if (delta > 1) {
+                        m_lostPktsWindow += static_cast<uint32_t>(delta - 1);
+                    }
+                    m_lastSeq = seq;
+                }
+            } else {
+                m_hasSeq = true;
+                m_lastSeq = seq;
             }
         }
 
-        unFindPakcetCount=0;
-        char* pbuff=packetDataAndIndexs.find(next_packetIndex)->second.first;
-        int ilen=packetDataAndIndexs.find(next_packetIndex)->second.second;
+        m_lastRemoteTID = remoteTID;
+        m_recvPktsWindow += 1;
+        m_recvBytesWindow += rtp_len;
+        m_rxRtpPktsWindow += 1;
+        m_rxRtpBytesWindow += rtp_len;
 
-        memcpy(ffmpegobj.filebuf, pbuff, ilen);
-        ffmpegobj.nDataLen = ilen;
-
-        free(pbuff);
-        pbuff = nullptr;
-
-        packetDataAndIndexs.erase(next_packetIndex);
-        next_packetIndex+=1;
-
-//        list_pbuff.pop_front();
-
-        mtx_list.unlock();
-
-        //must memcpy(ffmpegobj), and set it's len before
-#ifdef DEBUG_VIDEO_RECEIVER_
-        printf("[OK] decode_func::decode_show() ... wait");
-#endif
-        //decode_show(ffmpegobj);
-        decode_show();
-#ifdef DEBUG_VIDEO_RECEIVER_
-        printf(" ... ok!\n");
-#endif
-    //}
-
-}
-
-/* end decode */
-
-//Ffmpeg_Decoder ffmpegobj;
-//decode func
-//void decode_show(Ffmpeg_Decoder &ffmpegobj)
-void VideoReceiver::decode_show()
-{
-   if (ffmpegobj.nDataLen <= 0)
-   {
-       //houlc
-#ifdef DEBUG_VIDEO_RECEIVER_
-       printf("[Error]ffmpegobj.nDataLen <=0 \n");
-#endif
-    //break;
-       return ;
-   }
-   else
-   {
-    ffmpegobj.haveread = 0;
-    while (ffmpegobj.nDataLen > 0)
-    {
-        //usleep(1);
-#ifdef DEBUG_VIDEO_RECEIVER_
-        printf("[houlc-debug] av_parser_parse2..start..\n");
-#endif
-
-        ffmpegobj.mtx_ffmpeg_c.lock();
-        int nLength = av_parser_parse2(ffmpegobj.avParserContext, ffmpegobj.c, &ffmpegobj.yuv_buff,
-            &ffmpegobj.nOutSize, ffmpegobj.filebuf + ffmpegobj.haveread, ffmpegobj.nDataLen, 0, 0, 0);//查找帧头
-        ffmpegobj.mtx_ffmpeg_c.unlock();
-
-#ifdef DEBUG_VIDEO_RECEIVER_
-            printf("[houlc-debug] av_parser_parse2..ok..ret=%d\n", ffmpegobj.nOutSize);
-#endif
-        ffmpegobj.nDataLen -= nLength;//查找过后指针移位标志
-        ffmpegobj.haveread += nLength;
-        if (ffmpegobj.nOutSize <= 0)
-        {
-
-            break;
+        GstBuffer *gstbuf = gst_buffer_new_allocate(nullptr, rtp_len, nullptr);
+        if (!gstbuf) {
+            return true;
         }
-        ffmpegobj.avpkt.size = ffmpegobj.nOutSize;//将帧数据放进包中
-        ffmpegobj.avpkt.data = ffmpegobj.yuv_buff;
-        playframecount++;
+        gst_buffer_fill(gstbuf, 0, rtp, rtp_len);
+        gst_app_src_push_buffer(GST_APP_SRC(appsrc), gstbuf);
 
-        //usleep(1);
-#ifdef DEBUG_VIDEO_RECEIVER_
-        printf("[houlc-debug] avcodec_decode_video2..start..\n");
-#endif
-
-        ffmpegobj.mtx_ffmpeg_c.lock();
-        ffmpegobj.decodelen = avcodec_decode_video2(ffmpegobj.c, ffmpegobj.m_pYUVFrame, &ffmpegobj.piclen, &ffmpegobj.avpkt);//解码
-        ffmpegobj.mtx_ffmpeg_c.unlock();
-
-#ifdef DEBUG_VIDEO_RECEIVER_
-        printf("[houlc-debug] avcodec_decode_video2..ret:%d.\n", ffmpegobj.decodelen);
-#endif
-
-#ifdef DEBUG_VIDEO_RECEIVER_
-        printf("[houlc-debug] AVERROR_BUG=%ld\n", AVERROR_BUG);
-#endif
-           if(ffmpegobj.piclen<0)
-        {
-#ifdef DEBUG_VIDEO_RECEIVER_
-            printf("\n[houlc]decode len < 0!!!!\n");
-#endif
-            break;
+        const qint64 elapsedMs = m_rxStatClock.elapsed();
+        if (elapsedMs >= 1000) {
+            const uint64_t bps = (m_rxRtpBytesWindow * 8ULL * 1000ULL) / static_cast<uint64_t>(elapsedMs);
+            const uint64_t pps = (m_rxRtpPktsWindow * 1000ULL) / static_cast<uint64_t>(elapsedMs);
+            std::cout << "[VideoReceiver] TID=" << getTID()
+                      << " from=" << remoteTID
+                      << " raw_pkts=" << m_rxRawPktsWindow
+                      << " rtp_pps=" << pps
+                      << " rtp_kbps=" << (bps / 1000ULL)
+                      << std::endl;
+            m_rxRawPktsWindow = 0;
+            m_rxRtpPktsWindow = 0;
+            m_rxRtpBytesWindow = 0;
+            m_rxStatClock.restart();
         }
-        if (ffmpegobj.piclen)
-        {
-            if (ffmpegobj.finishInitScxt == false)//初始化格式转换函数
-            {
-                ffmpegobj.finishInitScxt = true;
+        return true;
+    };
 
-                ffmpegobj.mtx_ffmpeg_c.lock();
-                ffmpegobj.scxt = sws_getContext(ffmpegobj.c->width, ffmpegobj.c->height, ffmpegobj.c->pix_fmt,
-                    ffmpegobj.c->width, ffmpegobj.c->height, AV_PIX_FMT_BGR24, SWS_POINT, NULL, NULL, NULL);
-                ffmpegobj.mtx_ffmpeg_c.unlock();
-
-                int width = ffmpegobj.c->width;
-                int height = ffmpegobj.c->height;
-
-                try {
-                    ffmpegobj.yuv_buff = new uint8_t[width * height * 2];//初始化YUV图像数据区
-                    ffmpegobj.rgb_buff = new uint8_t[width * height * 3];//初始化RGB图像帧数据区
-                }
-                catch(std::bad_alloc& ex){
-#ifdef DEBUG_VIDEO_RECEIVER_
-                    std::cout<<"[MemWrong]decode_show() ffmpegobj.yuv_buff/rgb_buff new failed: " << ex.what() <<std::endl;
-#endif
-                }
-
-                ffmpegobj.data[0] = ffmpegobj.rgb_buff;
-                ffmpegobj.linesize[0] = width * 3;
-            }
-            if (ffmpegobj.scxt != NULL)
-            {
-                //usleep(1);
-                //YUV转rgb
-                ffmpegobj.mtx_ffmpeg_c.lock();
-                sws_scale(ffmpegobj.scxt, ffmpegobj.m_pYUVFrame->data, ffmpegobj.m_pYUVFrame->linesize, 0,
-                    ffmpegobj.c->height, ffmpegobj.data, ffmpegobj.linesize);
-                ffmpegobj.mtx_ffmpeg_c.unlock();
-                //usleep(1);
-                //ffmpegobj.Ffmpeg_Decoder_Show((char*)ffmpegobj.rgb_buff, ffmpegobj.c->width, ffmpegobj.c->height);//解码图像显示
-
-                Mat *rgbmat = nullptr;
-
-                try {
-                    //Mat rgbmat = Mat(ffmpegobj.c->height, ffmpegobj.c->width, CV_8UC3, (char*)ffmpegobj.rgb_buff);
-                    rgbmat = new Mat(ffmpegobj.c->height, ffmpegobj.c->width, CV_8UC3,
-                                          (char *) ffmpegobj.rgb_buff);
-                }
-                catch(std::bad_alloc& ex){
-#ifdef DEBUG_VIDEO_RECEIVER_
-                    std::cout<<"[MemWrong]decode_show() new Mat push into list_matbuff // new failed: " << ex.what() <<std::endl;
-#endif
-                }
-
-                //mtx_rgblist.lock();
-                //list_matbuff.push_back(rgbmat);
-                //mtx_rgblist.unlock();
-                this->ShowImage(*rgbmat);
-#ifdef DEBUG_VIDEO_RECEIVER_
-                std::cout<<"----------------delete rgb mat -----------------------------------"  <<std::endl;
-#endif
-                delete rgbmat;
-                rgbmat = nullptr;
+    const BYTE *raw = pBuffer.get();
+    if (dwLength >= 21) {
+        const DWORD data_len = CIMsg::ReadData(const_cast<BYTE *>(raw + 12));
+        if (data_len >= 2 && data_len + 20 == dwLength) {
+            const BYTE *typed = raw + 20;
+            if (typed[0] == 0x00 && ((typed[1] & 0xC0) == 0x80)) {
+                return process_typed_rtp(srcTID, typed, data_len);
             }
         }
     }
-   }
+
+    if (dwLength >= 2 && raw[0] == 0x00 && ((raw[1] & 0xC0) == 0x80)) {
+        return process_typed_rtp(srcTID, raw, dwLength);
+    }
+    return true;
+}
+
+bool VideoReceiver::onSpeedControlRecvData(DWORD srcTID,
+                                           const std::shared_ptr<BYTE> &pBuffer,
+                                           DWORD dwLength,
+                                           long int &,
+                                           long int &) {
+    if (!appsrc) {
+        std::cout << "[DEBUG] onSpeedControlRecvData: appsrc is NULL!" << std::endl;
+        return true;
+    }
+    if (!pBuffer || dwLength < 2) {
+        std::cout << "[DEBUG] onSpeedControlRecvData: Invalid buffer. Len=" << dwLength << std::endl;
+        return true;
+    }
+    m_rxRawPktsWindow += 1;
+    if (m_expectedRemoteTID != 0 && srcTID != m_expectedRemoteTID) {
+        std::cout << "[DEBUG] TID mismatch. Exp=" << m_expectedRemoteTID << " Act=" << srcTID << std::endl;
+        return true;
+    }
+
+        // std::cout << "[DEBUG] Not Video Data. Type=" << (int)typed[0] << std::endl;
+    const BYTE *typed = pBuffer.get();
+    if (typed[0] != 0x00) {
+        return true;
+    }
+    const DWORD rtp_len = dwLength - 1;
+    const BYTE *rtp = typed + 1;
+    if (rtp_len < 12 || ((rtp[0] & 0xC0) != 0x80)) {
+        return true;
+    }
+
+    const uint16_t seq = (static_cast<uint16_t>(rtp[2]) << 8) | static_cast<uint16_t>(rtp[3]);
+    if (m_hasSeq) {
+        const uint16_t delta = static_cast<uint16_t>(seq - m_lastSeq);
+        if (delta > 0 && delta < 0x8000) {
+            if (delta > 1) {
+                m_lostPktsWindow += static_cast<uint32_t>(delta - 1);
+            }
+            m_lastSeq = seq;
+        }
+    } else {
+        m_hasSeq = true;
+        m_lastSeq = seq;
+    }
+
+    m_lastRemoteTID = srcTID;
+    m_recvPktsWindow += 1;
+    m_recvBytesWindow += rtp_len;
+    m_rxRtpPktsWindow += 1;
+    m_rxRtpBytesWindow += rtp_len;
+
+    GstBuffer *gstbuf = gst_buffer_new_allocate(nullptr, rtp_len, nullptr);
+    if (!gstbuf) {
+        return true;
+    }
+    gst_buffer_fill(gstbuf, 0, rtp, rtp_len);
+    GstFlowReturn ret = gst_app_src_push_buffer(GST_APP_SRC(appsrc), gstbuf);
+    if (ret != GST_FLOW_OK) {
+        std::cerr << "[VideoReceiver] appsrc push failed: " << ret << std::endl;
+    }
+
+    const qint64 elapsedMs = m_rxStatClock.elapsed();
+    if (elapsedMs >= 1000) {
+        const uint64_t bps = (m_rxRtpBytesWindow * 8ULL * 1000ULL) / static_cast<uint64_t>(elapsedMs);
+        const uint64_t pps = (m_rxRtpPktsWindow * 1000ULL) / static_cast<uint64_t>(elapsedMs);
+        std::cout << "[VideoReceiver] TID=" << getTID()
+                  << " from=" << srcTID
+                  << " raw_pkts=" << m_rxRawPktsWindow
+                  << " rtp_pps=" << pps
+                  << " rtp_kbps=" << (bps / 1000ULL)
+                  << " appsrc=" << (void*)appsrc
+                  << std::endl;
+        m_rxRawPktsWindow = 0;
+        m_rxRtpPktsWindow = 0;
+        m_rxRtpBytesWindow = 0;
+        m_rxStatClock.restart();
+    }
+    return true;
+}
+
+void VideoReceiver::on_timer_send_feedback() {
+    if (m_lastRemoteTID == 0) {
+        return;
+    }
+    const qint64 elapsedMs = m_feedbackClock.elapsed();
+    if (elapsedMs <= 0) {
+        return;
+    }
+
+    const uint32_t recv_bps = static_cast<uint32_t>((m_recvBytesWindow * 8ULL * 1000ULL) / static_cast<uint64_t>(elapsedMs));
+    const uint32_t expected_pkts = m_recvPktsWindow + m_lostPktsWindow;
+    const uint32_t loss_x1000 = expected_pkts ? static_cast<uint32_t>((static_cast<uint64_t>(m_lostPktsWindow) * 1000ULL) / expected_pkts) : 0;
+    const uint32_t last_seq_u32 = static_cast<uint32_t>(m_lastSeq);
+
+    const DWORD totalLen = 1 + 4 + 4 + 4;
+    std::shared_ptr<BYTE> sendBuf(new BYTE[totalLen], std::default_delete<BYTE[]>());
+    BYTE *p = sendBuf.get();
+    p[0] = 0x01;
+    uint32_t v = htonl(recv_bps);
+    memcpy(p + 1, &v, 4);
+    v = htonl(loss_x1000);
+    memcpy(p + 5, &v, 4);
+    v = htonl(last_seq_u32);
+    memcpy(p + 9, &v, 4);
+
+    SendTIDDataWithSpeedControl(m_lastRemoteTID, sendBuf, totalLen, true, false, false); // 改为false，与发送端匹配
+
+    m_recvBytesWindow = 0;
+    m_recvPktsWindow = 0;
+    m_lostPktsWindow = 0;
+    m_feedbackClock.restart();
+}
+
+// Legacy methods kept to satisfy interface but emptied or redirected
+
+void VideoReceiver::setData(int videoPort) {
+    // If port changes dynamically, we can restart pipeline here
+    if (this->videoListenPort != videoPort) {
+        this->videoListenPort = videoPort;
+        startGstPipeline(videoPort);
+    }
 }
 
 int VideoReceiver::getVideoPort() {
     return videoListenPort;
+}
+
+void VideoReceiver::onRecvVideoData(QByteArray data,unsigned int dataLength,unsigned int packetIndex) {
+    // Disabled for GST path as we use udpsrc
 }

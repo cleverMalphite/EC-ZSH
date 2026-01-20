@@ -19,12 +19,15 @@ set(LIB_DIRS /usr/local/lib)
 find_package(Threads REQUIRED)
 
 find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets Charts)
+find_package(OpenCV REQUIRED)
+find_package(Protobuf REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GST REQUIRED gstreamer-1.0 gstreamer-app-1.0)
 
 include_directories(${INC_DIRS})
 include_directories(${LIB_DIRS})
 
-#find_package(Protobuf REQUIRED)
-#include_directories(${PROTOBUF_INCLUDE_DIRS})
+include_directories(${Protobuf_INCLUDE_DIRS})
 
 set(PROJECT_DIR ../.)
 
@@ -54,6 +57,7 @@ SET(TEST_UI
         ${PROJECT_DIR}/build/MRUDP
         ${PROJECT_DIR}/build/RBUDP
         ${PROJECT_DIR}/build/BigDataTransfer
+        ${PROJECT_DIR}/build/infoHub
         ${PROJECT_DIR}/build/Term2TermQos
 )
 
@@ -66,6 +70,11 @@ add_executable(ec2_ui_test
         function.cpp
         mainwindow.cpp
         temppage.cpp
+        VideoSender.cpp
+        VideoReceiver.cpp
+        playerwidget.cpp
+        ${PROJECT_DIR}/DataTransfer/fileblock/msg_cpp/FileBlockMsg.pb.cc
+        ${PROJECT_DIR}/Util/DataUpdater.h
 #        ../epollComm/EpollCommApi.cpp  # 确保包含
 #        ../utilClass/DataUpdater.h
 #        utilClass/isRBUDP_callback.cpp
@@ -77,8 +86,13 @@ target_link_libraries(ec2_ui_test
         Qt5::Core
         Qt5::Gui
         Qt5::Widgets
+        Qt5::Charts
         Threads::Threads
+        ${OpenCV_LIBS}
+        ${GST_LIBRARIES}
+        ${Protobuf_LIBRARIES}
         IniHandler
+        infoHub
         NetEpollComm
         NetCombTransferAPI
         SpeedControl
@@ -86,7 +100,22 @@ target_link_libraries(ec2_ui_test
         RBUDP
         BigDataTransfer
         QOS
-        ${PROTOBUF_LIBRARIES}
+        rpc
+        hv
+)
+
+target_link_directories(ec2_ui_test
+        PRIVATE
+        /usr/local/lib/
+        ${LIB_DIRS}
+)
+
+target_include_directories(ec2_ui_test PRIVATE
+        ${GST_INCLUDE_DIRS}
+)
+
+target_compile_options(ec2_ui_test PRIVATE
+        ${GST_CFLAGS_OTHER}
 )
 
 # 设置 CMake 策略

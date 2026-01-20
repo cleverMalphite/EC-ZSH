@@ -89,8 +89,8 @@ private:
     QStandardItemModel *recvHistoryModel_;
 
      //视频相关操作
-    ResizableLabel* videoSender;
-    ResizableLabel* videoReceiver;
+    VideoSender* videoSender;
+    VideoReceiver* videoReceiver;
      unsigned int localVideoPort;  //本地接收视频的port
 
     //图片相关数据
@@ -123,5 +123,4 @@ private:
 
 
 #endif // MAINWINDOW_H
-
 

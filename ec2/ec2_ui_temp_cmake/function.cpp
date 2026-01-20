@@ -35,6 +35,8 @@ bool isrbudp;
 //定义DateUpdater的对象，用来发送数据更新信号
 DataUpdater *dataUpdater;
 
+int gUiRole = 0;
+
 pthread_mutex_t _sendTask_Mutex;
 pthread_mutex_t _recvTask_Mutex;
 pthread_mutex_t _terminal_Mutex;

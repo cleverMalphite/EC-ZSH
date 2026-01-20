@@ -19,22 +19,22 @@
 struct st_arg{
   //初始化参数
 	int role;
-	int dtu;
+	int dtu; // 数据传输单元ID
   int remotetid;
-  char inifilepath[101];
-  char localip[51];
-  char remoteip[51];
-  int localport;
-  int remoteport;
-  int runtime;
+  char inifilepath[101]; // 配置文件路径
+  char localip[51]; // 本地IP地址
+  char remoteip[51]; // 远程IP地址
+  int localport; // 本地端口号
+  int remoteport; // 远程端口号
+  int runtime; // 运行时间
 
   //批量文件传输参数
-  char localpath[301];
-  char matchname[301];
-  int ptype;
-  char localpathbak[301];
-  char okfilename[301];
-  int timetvl;
+  char localpath[301]; // 本地文件目录路径
+  char matchname[301]; // 匹配文件名表达式
+  int ptype; // 处理类型
+  char localpathbak[301]; // 本地备份目录路径
+  char okfilename[301]; // 成功文件名
+  int timetvl; // 时间间隔
 } starg;
 
 CLogFile logfile;
@@ -46,8 +46,8 @@ bool startAutoSend = false;
 //本程序的业务流程主函数
 bool _ectransfiles();
 
-vector<struct st_fileinfo> vlistfile, vlistfile1;
-vector<struct st_fileinfo> vokfilename, vokfilename1;
+vector<struct st_fileinfo> vlistfile, vlistfile1; // 本地文件列表容器
+vector<struct st_fileinfo> vokfilename, vokfilename1; // 成功文件名列表容器
 
 //把localpath目录下的文件加载到vlistfile容器中
 bool LoadListFile();
@@ -83,9 +83,9 @@ void System_shutdown(bool QosOpen = true) ;
 
 //MRUDP数据服务a回调函数
 void mrudp_dataserver_a_callback(
-                DWORD dTermId, 
+                DWORD dTermId,  // 终端ID
                 const std::shared_ptr<BYTE> &recv_data, 
-                DWORD dRecvDataByteLength);
+                DWORD dRecvDataByteLength); // 接收数据字节长度
 
 int main(int argc, char *argv[]) {
 		

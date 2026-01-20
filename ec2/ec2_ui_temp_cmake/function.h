@@ -103,6 +103,8 @@ extern std::shared_ptr<BigDataTransfer::BigDataTransferManager> gBigDataTransfer
 extern DataUpdater *dataUpdater;
 extern pthread_mutex_t _Mutex;  //NOTE:没用
 
+extern int gUiRole;
+
 
 //系统启动
 void System_start(const char *config_path, bool QosOpen = true, bool IsRBUDP = false) ;
@@ -194,7 +196,6 @@ vector<string> splitString(const string& s,const string& delim);  //分割字符
 
 
 #endif // FUNCTION_H
-
 
 
 

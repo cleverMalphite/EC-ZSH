@@ -28,16 +28,14 @@ PlayerWidget::PlayerWidget(QWidget *parent)
 
 void PlayerWidget::pushFrame2Show(const cv::Mat &mat)
 {
-    this->images_lock.lock();
-    this->images << QPixmap::fromImage(MatToQImage2(mat)) ;
-    this->images_lock.unlock();
+    std::lock_guard<std::mutex> guard(this->images_lock);
+    this->images << QPixmap::fromImage(MatToQImage2(mat));
 }
 
 void PlayerWidget::pushPixmap2Show(const QPixmap &pixmap)
 {
-    this->images_lock.lock();
+    std::lock_guard<std::mutex> guard(this->images_lock);
     this->images << pixmap;
-    this->images_lock.unlock();
 }
 void PlayerWidget::startPlay(const int fps)
 {
@@ -65,7 +63,7 @@ PlayerWidget::~PlayerWidget()
 
 void PlayerWidget::paintEvent(QPaintEvent *event) {
 
-    if(this->images.empty() || this->is_play == false) return;
+    if (this->is_play == false) return;
 
 #ifdef DEBUG_PLAYER_WIDGET_
     std::cout<<"<DEBUG>[paintEvent]images list size:"<<this->images.size()<<std::endl;
@@ -73,38 +71,31 @@ void PlayerWidget::paintEvent(QPaintEvent *event) {
 
 
     QPainter painter(this);
-    //painter.drawPixmap(rect(), images[currentImageIndex]); // 绘制当前图片
-    painter.drawPixmap(rect(), images.front()); // 绘制当前图片
-    
-    //Houlc 2024.05.24 set lock last img option
-    if(this->images.size() >= 2){
-        this->images_lock.lock();
-        this->images.pop_front();
-        this->images_lock.unlock();
-    }
-    else if(this->images.size() == 1){
-        if(lockLastImg==true ){
-                 
+    std::lock_guard<std::mutex> guard(this->images_lock);
+    if (this->images.empty()) {
+        if (!this->lastPixmap.isNull()) {
+            painter.drawPixmap(rect(), this->lastPixmap);
         }
-        else if(lockLastImg==false){
-            this->images_lock.lock();
+        return;
+    }
+
+    this->lastPixmap = this->images.front();
+    painter.drawPixmap(rect(), this->lastPixmap);
+
+    if (this->images.size() >= 2) {
+        this->images.pop_front();
+    } else if (this->images.size() == 1) {
+        if (lockLastImg == false) {
             this->images.pop_front();
-            this->images_lock.unlock();
         }
     }
 
-    //2. control the size of images list,when too long
-    if(this->images.size()>this->len_buf){
-        this->images_lock.lock();
-        for(int i = 0; i < this->images.size()-1; i++){
-            this->images.pop_front();
-            painter.drawPixmap(rect(), images.front()); // 绘制当前图片
-        }
-        this->images_lock.unlock();
+    while (this->images.size() > this->len_buf) {
+        this->images.pop_front();
+    }
 #ifdef DEBUG_PLAYER_WIDGET_
         std::cout<<"<DEBUG>[paintEvent::Control Length]images list size:"<<images.size()<<std::endl;
 #endif
-    }
 
 }
 
@@ -121,14 +112,18 @@ QImage PlayerWidget::MatToQImage2(const cv::Mat &mat)
     int chana = mat.channels();
     //依据通道数不同，改变不同的装换方式
     if(3 == chana ){
-        //调整通道次序
-        if(is_rgb==true)cv::cvtColor(mat,mat,cv::COLOR_BGR2RGB);
-        img = QImage(static_cast<uchar *>(mat.data),mat.cols,mat.rows,QImage::Format_RGB888);
+        cv::Mat tmp;
+        if (is_rgb == true) {
+            cv::cvtColor(mat, tmp, cv::COLOR_BGR2RGB);
+        } else {
+            tmp = mat;
+        }
+        img = QImage(static_cast<uchar *>(tmp.data), tmp.cols, tmp.rows, QImage::Format_RGB888).copy();
     }
     else if(4 == chana )
     {
         //argb
-        img = QImage(static_cast<uchar *>(mat.data),mat.cols,mat.rows,QImage::Format_ARGB32);
+        img = QImage(static_cast<uchar *>(mat.data), mat.cols, mat.rows, QImage::Format_ARGB32).copy();
     }
     else {
     //单通道，灰度图

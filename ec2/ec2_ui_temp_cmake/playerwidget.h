@@ -66,6 +66,7 @@ private:
 
     std::mutex images_lock;
     QList<QPixmap> images;
+    QPixmap lastPixmap;
 };
 
 

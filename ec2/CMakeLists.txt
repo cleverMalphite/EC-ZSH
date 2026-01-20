@@ -21,6 +21,11 @@ set(CMAKE_AUTOMOC ON)
 find_package(OpenCV REQUIRED)
 find_package(Threads REQUIRED)
 find_package(Qt5 COMPONENTS Core Gui Widgets Charts REQUIRED)
+
+# GStreamer dependencies
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GST REQUIRED gstreamer-1.0 gstreamer-app-1.0 gstreamer-video-1.0)
+
 find_package(Protobuf REQUIRED)
 include_directories(${PROTOBUF_INCLUDE_DIRS})
 
@@ -43,6 +48,10 @@ include_directories(${PROJECT_SOURCE_DIR}/BigDataTransfer)
 include_directories(${PROJECT_SOURCE_DIR}/Term2TermQos)
 include_directories(${PROJECT_SOURCE_DIR}/DataTransfer)
 include_directories(${PROJECT_SOURCE_DIR}/BulkDataTransfer)
+
+include_directories(${GST_INCLUDE_DIRS})
+link_directories(${GST_LIBRARY_DIRS})
+
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/infoHub)
 
@@ -70,8 +79,7 @@ add_executable(ec_xgz_ui
         ec2_ui_temp_cmake/function.cpp
         ec2_ui_temp_cmake/mainwindow.cpp
         ec2_ui_temp_cmake/temppage.cpp
-#        ec2_ui_temp_cmake/VideoReceiver.cpp
-#        ec2_ui_temp_cmake/VideoReceiver.h
+        ec2_ui_temp_cmake/VideoReceiver.cpp
         ec2_ui_temp_cmake/VideoSender.cpp
         ec2_ui_temp_cmake/VideoSender.h
         ec2_ui_temp_cmake/playerwidget.h
@@ -105,6 +113,7 @@ target_link_libraries(ec_xgz_ui
         hv
         ${OpenCV_LIBS}
         ${CMAKE_THREAD_LIBS_INIT}
+        ${GST_LIBRARIES}
 )
 target_link_directories(ec_xgz_ui
         PRIVATE
