@@ -17,7 +17,7 @@ extern const DWORD TASK_ID_INCREMENT = 1000000;    //一个终端最多能同时
 
 namespace BigDataTransfer {
 
-    extern std::shared_ptr<BigDataTransferManager> gBigDataTransferManager;
+    extern std::shared_ptr<BigDataTransferManager> gBigDataTransferManager; // 全局BigDataTransferManager指针
 
     //回调函数：对应MRUDP中定义的数据回调接口PGETDATAFROMMRUDPFORBIGDATATRANSFERCALLBACK
     void OnRecvMRUDPData(DWORD dRemoteId, 

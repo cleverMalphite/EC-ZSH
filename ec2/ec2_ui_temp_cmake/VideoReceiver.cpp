@@ -18,11 +18,13 @@
 #include "../GlobalMessage.h"
 #include "../SpeedControl/SpeedControlApi.h"
 #include "VideoRtp_callback.h"
+#include "../Util/AudioRtp_callback.h"
 
 #include <list>
 #include <thread>
 #include <utility>
 #include <mutex>
+#include <algorithm>
 
 #include <QLabel>
 #include <QVBoxLayout>
@@ -60,6 +62,17 @@ static bool VideoReceiver_NetCombTransferMessageCallback(DWORD, bool) {
     return true;
 }
 
+static bool VideoReceiver_AudioRtpRecvDataCallback(DWORD dwTID,
+                                                   const std::shared_ptr<BYTE> &pBuffer,
+                                                   DWORD dwLength,
+                                                   long int &recvtime,
+                                                   long int &fb_send_time) {
+    if (!g_video_receiver_instance) {
+        return true;
+    }
+    return g_video_receiver_instance->onAudioRtpData(dwTID, pBuffer, dwLength, recvtime, fb_send_time);
+}
+
 static bool VideoReceiver_NetCombTransferBufferCallback(DWORD dwTID,
                                                         const std::shared_ptr<BYTE> &pBuffer,
                                                         DWORD dwLength,
@@ -69,6 +82,12 @@ static bool VideoReceiver_NetCombTransferBufferCallback(DWORD dwTID,
         return true;
     }
     return g_video_receiver_instance->onNetCombTransferBuffer(dwTID, pBuffer, dwLength, bMsg, packet_recv_timeStamp);
+}
+
+static uint64_t from_be_u64_video(uint64_t v) {
+    const uint32_t hi = ntohl(static_cast<uint32_t>(v & 0xFFFFFFFFULL));
+    const uint32_t lo = ntohl(static_cast<uint32_t>((v >> 32) & 0xFFFFFFFFULL));
+    return (static_cast<uint64_t>(hi) << 32) | static_cast<uint64_t>(lo);
 }
 
 VideoReceiver::VideoReceiver(QWidget *parent)
@@ -124,14 +143,12 @@ VideoReceiver::VideoReceiver(QWidget *parent)
     m_rxRtpBytesWindow = 0;
     m_rxStatClock.start();
 
-    if (gUiRole == 2) {
+    if (gUiRole == 2) {   // 如果是接收端
         g_video_receiver_instance = this;
-        static bool s_speedcontrol_cb_registered = false;
-        if (!s_speedcontrol_cb_registered) {
-            Register_SpeedControl_RecvDataCallBack(VideoReceiver_SpeedControlRecvDataCallback);
-            s_speedcontrol_cb_registered = true;
-        }
-        Register_VideoRtp_RecvDataCallBack(VideoReceiver_SpeedControlRecvDataCallback);
+        m_audioReceiver = new AudioReceiverCore(this);
+        m_audioReceiver->start();
+        Register_VideoRtp_RecvDataCallBack(VideoReceiver_SpeedControlRecvDataCallback);  // 注册视频RTP接收数据回调函数
+        Register_AudioRtp_RecvDataCallBack(VideoReceiver_AudioRtpRecvDataCallback);
         startDeepIntegrationPipeline();
         m_feedbackClock.start();
         timer_feedback->start(200);
@@ -163,6 +180,11 @@ VideoReceiver::~VideoReceiver()
     
     // on_pushButton_return_clicked(); // Removed as UI buttons are removed
     delete playerWidget;
+    if (m_audioReceiver) {
+        m_audioReceiver->stop();
+        delete m_audioReceiver;
+        m_audioReceiver = nullptr;
+    }
     exit_flag=true;
     delete timer_appsink;
     if (g_video_receiver_instance == this) {
@@ -422,8 +444,16 @@ bool VideoReceiver::onNetCombTransferBuffer(DWORD srcTID,
         if (typed[0] != 0x00) {
             return true;
         }
-        const DWORD rtp_len = typed_len - 1;
-        const BYTE *rtp = typed + 1;
+        DWORD offset = 1;
+        uint64_t videoCaptureTsUs = 0;
+        if (typed_len >= (1 + sizeof(uint64_t) + 12) && ((typed[1 + sizeof(uint64_t)] & 0xC0) == 0x80)) {
+            uint64_t tsBe = 0;
+            std::memcpy(&tsBe, typed + 1, sizeof(uint64_t));
+            videoCaptureTsUs = from_be_u64_video(tsBe);
+            offset = 1 + sizeof(uint64_t);
+        }
+        const DWORD rtp_len = typed_len - offset;
+        const BYTE *rtp = typed + offset;
         if (rtp_len >= 12) {
             const uint16_t seq = (static_cast<uint16_t>(rtp[2]) << 8) | static_cast<uint16_t>(rtp[3]);
             if (m_hasSeq) {
@@ -445,6 +475,21 @@ bool VideoReceiver::onNetCombTransferBuffer(DWORD srcTID,
         m_recvBytesWindow += rtp_len;
         m_rxRtpPktsWindow += 1;
         m_rxRtpBytesWindow += rtp_len;
+
+        if (videoCaptureTsUs > 0 && m_audioReceiver) {
+            const uint64_t audioCaptureTsUs = m_audioReceiver->latestCaptureTimestampUs();
+            if (audioCaptureTsUs > 0) {
+                const int64_t avDiffMs = static_cast<int64_t>(videoCaptureTsUs / 1000ULL) - static_cast<int64_t>(audioCaptureTsUs / 1000ULL);
+                if (avDiffMs > 60) {
+                    const int64_t waitMs = std::min<int64_t>(avDiffMs - 40, 30);
+                    if (waitMs > 0) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(waitMs));
+                    }
+                } else if (avDiffMs < -150) {
+                    return true;
+                }
+            }
+        }
 
         GstBuffer *gstbuf = gst_buffer_new_allocate(nullptr, rtp_len, nullptr);
         if (!gstbuf) {
@@ -472,20 +517,32 @@ bool VideoReceiver::onNetCombTransferBuffer(DWORD srcTID,
     };
 
     const BYTE *raw = pBuffer.get();
-    if (dwLength >= 21) {
+        if (dwLength >= 21) {
         const DWORD data_len = CIMsg::ReadData(const_cast<BYTE *>(raw + 12));
         if (data_len >= 2 && data_len + 20 == dwLength) {
             const BYTE *typed = raw + 20;
-            if (typed[0] == 0x00 && ((typed[1] & 0xC0) == 0x80)) {
+                if (typed[0] == 0x00 && (((typed[1] & 0xC0) == 0x80) || (data_len >= 1 + sizeof(uint64_t) + 12 && ((typed[1 + sizeof(uint64_t)] & 0xC0) == 0x80)))) {
                 return process_typed_rtp(srcTID, typed, data_len);
             }
         }
     }
 
-    if (dwLength >= 2 && raw[0] == 0x00 && ((raw[1] & 0xC0) == 0x80)) {
+    if (dwLength >= 2 && raw[0] == 0x00 &&
+        (((raw[1] & 0xC0) == 0x80) || (dwLength >= 1 + sizeof(uint64_t) + 12 && ((raw[1 + sizeof(uint64_t)] & 0xC0) == 0x80)))) {
         return process_typed_rtp(srcTID, raw, dwLength);
     }
     return true;
+}
+
+bool VideoReceiver::onAudioRtpData(DWORD srcTID,
+                                   const std::shared_ptr<BYTE> &pBuffer,
+                                   DWORD dwLength,
+                                   long int &recvtime,
+                                   long int &fb_send_time) {
+    if (!m_audioReceiver) {
+        return true;
+    }
+    return m_audioReceiver->onAudioRtpData(srcTID, pBuffer, dwLength, recvtime, fb_send_time);
 }
 
 bool VideoReceiver::onSpeedControlRecvData(DWORD srcTID,
@@ -512,8 +569,16 @@ bool VideoReceiver::onSpeedControlRecvData(DWORD srcTID,
     if (typed[0] != 0x00) {
         return true;
     }
-    const DWORD rtp_len = dwLength - 1;
-    const BYTE *rtp = typed + 1;
+    DWORD offset = 1;
+    uint64_t videoCaptureTsUs = 0;
+    if (dwLength >= (1 + sizeof(uint64_t) + 12) && ((typed[1 + sizeof(uint64_t)] & 0xC0) == 0x80)) {
+        uint64_t tsBe = 0;
+        std::memcpy(&tsBe, typed + 1, sizeof(uint64_t));
+        videoCaptureTsUs = from_be_u64_video(tsBe);
+        offset = 1 + sizeof(uint64_t);
+    }
+    const DWORD rtp_len = dwLength - offset;
+    const BYTE *rtp = typed + offset;
     if (rtp_len < 12 || ((rtp[0] & 0xC0) != 0x80)) {
         return true;
     }
@@ -537,6 +602,21 @@ bool VideoReceiver::onSpeedControlRecvData(DWORD srcTID,
     m_recvBytesWindow += rtp_len;
     m_rxRtpPktsWindow += 1;
     m_rxRtpBytesWindow += rtp_len;
+
+    if (videoCaptureTsUs > 0 && m_audioReceiver) {
+        const uint64_t audioCaptureTsUs = m_audioReceiver->latestCaptureTimestampUs();
+        if (audioCaptureTsUs > 0) {
+            const int64_t avDiffMs = static_cast<int64_t>(videoCaptureTsUs / 1000ULL) - static_cast<int64_t>(audioCaptureTsUs / 1000ULL);
+            if (avDiffMs > 60) {
+                const int64_t waitMs = std::min<int64_t>(avDiffMs - 40, 30);
+                if (waitMs > 0) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(waitMs));
+                }
+            } else if (avDiffMs < -150) {
+                return true;
+            }
+        }
+    }
 
     GstBuffer *gstbuf = gst_buffer_new_allocate(nullptr, rtp_len, nullptr);
     if (!gstbuf) {

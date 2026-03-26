@@ -72,6 +72,8 @@ add_executable(ec2_ui_test
         temppage.cpp
         VideoSender.cpp
         VideoReceiver.cpp
+        AudioSenderCore.cpp
+        AudioReceiverCore.cpp
         playerwidget.cpp
         ${PROJECT_DIR}/DataTransfer/fileblock/msg_cpp/FileBlockMsg.pb.cc
         ${PROJECT_DIR}/Util/DataUpdater.h
@@ -79,6 +81,31 @@ add_executable(ec2_ui_test
 #        ../utilClass/DataUpdater.h
 #        utilClass/isRBUDP_callback.cpp
 #        utilClass/isRBUDP_callback.h
+)
+
+add_executable(ec2_audio_selftest
+        audio_selftest.cpp
+        AudioReceiverCore.cpp
+)
+
+target_link_libraries(ec2_audio_selftest
+        Qt5::Core
+        Threads::Threads
+        ${GST_LIBRARIES}
+)
+
+target_link_directories(ec2_audio_selftest
+        PRIVATE
+        /usr/local/lib/
+        ${LIB_DIRS}
+)
+
+target_include_directories(ec2_audio_selftest PRIVATE
+        ${GST_INCLUDE_DIRS}
+)
+
+target_compile_options(ec2_audio_selftest PRIVATE
+        ${GST_CFLAGS_OTHER}
 )
 
 # 链接库

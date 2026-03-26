@@ -45,10 +45,10 @@ static bool VideoSender_SpeedControlRecvDataCallback(DWORD dwTID,
 
 static std::string resolve_default_video_file_path() {
     const QStringList candidates = {
-        QDir::cleanPath(QDir::currentPath() + "/FileSend/testp4.mp4"),
-        QDir::cleanPath(QDir::currentPath() + "/../FileSend/testp4.mp4"),
-        QDir::cleanPath(QCoreApplication::applicationDirPath() + "/../FileSend/testp4.mp4"),
-        QString("/home/itzhou/EC1/EC2_12.8/FileSend/testp4.mp4"),
+        QDir::cleanPath(QDir::currentPath() + "/FileSend/AVtest.mp4"),
+        QDir::cleanPath(QDir::currentPath() + "/../FileSend/AVtest.mp4"),
+        QDir::cleanPath(QCoreApplication::applicationDirPath() + "/../FileSend/AVtest.mp4"),
+        QString("/home/itzhou/EC1/EC2_12.8/FileSend/AVtest.mp4"),
     };
 
     for (const auto& path : candidates) {
@@ -56,17 +56,24 @@ static std::string resolve_default_video_file_path() {
             return path.toStdString();
         }
     }
-    return "FileSend/testp4.mp4";
+    return "FileSend/AVtest.mp4";
 }
 
 static std::string to_file_uri(const std::string& path) {
     return QUrl::fromLocalFile(QString::fromStdString(path)).toString().toStdString();
 }
 
+static uint64_t to_be_u64(uint64_t v) {
+    const uint64_t hi = htonl(static_cast<uint32_t>((v >> 32) & 0xFFFFFFFFULL));
+    const uint64_t lo = htonl(static_cast<uint32_t>(v & 0xFFFFFFFFULL));
+    return (lo << 32) | hi;
+}
+
 VideoSender::VideoSender(QWidget *parent)
     : QWidget(parent)
 {
     ensure_gst_init();
+    m_audioSender = new AudioSenderCore(this);
 
     //init param
     fps = 30;
@@ -144,6 +151,11 @@ void VideoSender::ShowImage(cv::Mat& mat)
 VideoSender::~VideoSender()
 {
     stopGstPipeline();
+    if (m_audioSender) {
+        m_audioSender->stop();
+        delete m_audioSender;
+        m_audioSender = nullptr;
+    }
     
     on_pushButton_return_clicked();
     delete playerWidget;
@@ -166,10 +178,16 @@ void VideoSender::on_pushButton_play_clicked()
         }
     }
     startDeepIntegrationPipeline(targetTID);
+    if (m_audioSender) {
+        m_audioSender->start(targetTID);
+    }
 }
 
 void VideoSender::on_pushButton_pause_clicked()
 {
+    if (m_audioSender) {
+        m_audioSender->stop();
+    }
     stopGstPipeline();
 }
 
@@ -250,29 +268,55 @@ void VideoSender::startDeepIntegrationPipeline(int destTID) {
         s_speedcontrol_cb_registered = true;
     }
     
-    const std::string file_path = resolve_default_video_file_path();
-    if (!QFileInfo::exists(QString::fromStdString(file_path))) {
-        QMessageBox::information(this, "提示信息", QString("找不到视频文件：%1").arg(QString::fromStdString(file_path)));
-        return;
+    // Check for camera source override via environment variable
+    const char* video_src_env = std::getenv("EC2_VIDEO_SOURCE");
+    bool use_camera = (video_src_env && std::string(video_src_env) == "camera");
+
+    std::string pipeline_str;
+    if (use_camera) {
+        // Camera source pipeline (v4l2src)
+        const std::string preview_branch =
+            "t. ! queue ! videoconvert ! video/x-raw,format=BGR ! "
+            "appsink name=preview_sink drop=true max-buffers=1 sync=true";
+
+        const std::string rtp_branch =
+            "t. ! queue ! "
+            "x264enc name=enc tune=zerolatency speed-preset=superfast bitrate=2500 key-int-max=30 bframes=0 ! "
+            "rtph264pay mtu=1200 pt=96 config-interval=1 ! "
+            "appsink name=rtp_sink emit-signals=true sync=true max-buffers=10 drop=true";
+
+        pipeline_str =
+            "v4l2src device=/dev/video0 ! videoconvert ! videoscale ! videorate ! "
+            "video/x-raw,width=640,height=480,framerate=30/1 ! tee name=t " +
+            preview_branch + " " + rtp_branch;
+        
+        std::cout << "[VideoSender] Starting Camera pipeline: " << pipeline_str << std::endl;
+    } else {
+        // Existing File source pipeline logic
+        const std::string file_path = resolve_default_video_file_path();
+        if (!QFileInfo::exists(QString::fromStdString(file_path))) {
+            QMessageBox::information(this, "提示信息", QString("找不到视频文件：%1").arg(QString::fromStdString(file_path)));
+            return;
+        }
+        const std::string file_uri = to_file_uri(file_path);
+
+        const std::string preview_branch =
+            "t. ! queue ! videoconvert ! video/x-raw,format=BGR ! "
+            "appsink name=preview_sink drop=true max-buffers=1 sync=true";
+
+        const std::string rtp_branch =
+            "t. ! queue ! "
+            "x264enc name=enc tune=zerolatency speed-preset=superfast bitrate=2500 key-int-max=30 bframes=0 ! "
+            "rtph264pay mtu=1200 pt=96 config-interval=1 ! "
+            "appsink name=rtp_sink emit-signals=true sync=true max-buffers=10 drop=true";
+
+        pipeline_str =
+            "uridecodebin uri=" + file_uri + " ! videoconvert ! videoscale ! videorate ! "
+            "video/x-raw,width=640,height=480,framerate=30/1 ! tee name=t " +
+            preview_branch + " " + rtp_branch;
+
+        std::cout << "[VideoSender] Starting Deep Integration pipeline (mp4 loop): " << pipeline_str << std::endl;
     }
-    const std::string file_uri = to_file_uri(file_path);
-
-    const std::string preview_branch =
-        "t. ! queue ! videoconvert ! video/x-raw,format=BGR ! "
-        "appsink name=preview_sink drop=true max-buffers=1 sync=true";
-
-    const std::string rtp_branch =
-        "t. ! queue ! "
-        "x264enc name=enc tune=zerolatency speed-preset=superfast bitrate=2500 key-int-max=30 bframes=0 ! "
-        "rtph264pay mtu=1200 pt=96 config-interval=1 ! "
-        "appsink name=rtp_sink emit-signals=true sync=true max-buffers=10 drop=true";
-
-    const std::string pipeline_str =
-        "uridecodebin uri=" + file_uri + " ! videoconvert ! videoscale ! videorate ! "
-        "video/x-raw,width=640,height=480,framerate=30/1 ! tee name=t " +
-        preview_branch + " " + rtp_branch;
-
-    std::cout << "[VideoSender] Starting Deep Integration pipeline (mp4 loop): " << pipeline_str << std::endl;
 
     GError *error = nullptr;
     pipeline = gst_parse_launch(pipeline_str.c_str(), &error);
@@ -393,12 +437,14 @@ void VideoSender::handleRtpData(guint8* data, gsize size) {
     if (m_destTID <= 0) return;
     if (m_isStopping.load()) return;
 
-    // Add 1 byte header (0x00 for RTP)
-    DWORD totalLen = size + 1;
+    const uint64_t captureTsUs = gst_util_get_timestamp() / 1000ULL;
+    const uint64_t tsBe = to_be_u64(captureTsUs);
+    DWORD totalLen = static_cast<DWORD>(size + 1 + sizeof(uint64_t));
     std::shared_ptr<BYTE> sendBuf(new BYTE[totalLen], std::default_delete<BYTE[]>());
     
-    sendBuf.get()[0] = 0x00; // RTP marker
-    memcpy(sendBuf.get() + 1, data, size);
+    sendBuf.get()[0] = 0x00;
+    memcpy(sendBuf.get() + 1, &tsBe, sizeof(uint64_t));
+    memcpy(sendBuf.get() + 1 + sizeof(uint64_t), data, size);
 
     bool ret = SendTIDDataWithSpeedControl(static_cast<DWORD>(m_destTID),
                                            sendBuf,

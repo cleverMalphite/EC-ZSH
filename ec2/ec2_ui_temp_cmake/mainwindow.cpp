@@ -135,7 +135,6 @@ void MainWindow::init(){
         ui->recvVideo_layout->addWidget(videoReceiver);
     }
 
-
      //传输速率曲线初始化
      {
          sendSpeed=0;

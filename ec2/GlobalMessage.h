@@ -65,8 +65,8 @@ public:
     }
 
 public:
-    static void WriteData(BYTE *pBuffer, DWORD dwData) {
-        if (pBuffer) {
+    static void WriteData(BYTE *pBuffer, DWORD dwData) {   //代码操作的是逻辑上的最高位，然后把它按大/小端序进行存放
+        if (pBuffer) {   
             BYTE hhByte = (BYTE) ((dwData & 0xff000000) >> 24);
             BYTE hlByte = (BYTE) ((dwData & 0x00ff0000) >> 16);
             BYTE lhByte = (BYTE) ((dwData & 0x0000ff00) >> 8);

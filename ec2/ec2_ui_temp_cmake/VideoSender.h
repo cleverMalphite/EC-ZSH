@@ -27,6 +27,7 @@
 #include "function.h"
 #include "../NetCombTransfer/NetCombTransferApi.h" // Add NetCombTransfer API
 #include "../SpeedControl/SpeedControlApi.h"
+#include "AudioSenderCore.h"
 
 using namespace cv;
 
@@ -91,6 +92,7 @@ private:
     // Destination TID for NetCombTransfer
     int m_destTID = 0;
     uint32_t m_targetBitrateKbps = 0;
+    AudioSenderCore *m_audioSender = nullptr;
 
     QElapsedTimer m_sendStatClock;
     uint64_t m_sendPktsWindow = 0;

@@ -14,6 +14,7 @@
 
 #include "../Util/SystemTimeFunc.h"
 #include "../Util/VideoRtp_callback.h"
+#include "../Util/AudioRtp_callback.h"
 
 #include <thread>
 
@@ -79,7 +80,9 @@ namespace MRUDP {
             return true;
         }
         const BYTE *raw = pBuffer.get();
-        if (raw && dwLength >= 13 && raw[0] == 0x00 && ((raw[1] & 0xC0) == 0x80) && g_video_rtp_recv_callback) {
+        if (raw && raw[0] == 0x00 && g_video_rtp_recv_callback &&
+            ((dwLength >= 13 && ((raw[1] & 0xC0) == 0x80)) ||
+             (dwLength >= 1 + sizeof(uint64_t) + 12 && ((raw[1 + sizeof(uint64_t)] & 0xC0) == 0x80)))) {
             static uint64_t s_fwd_pkts = 0;
             static uint64_t s_fwd_bytes = 0;
             static int64_t s_last_ms = 0;
@@ -102,6 +105,32 @@ namespace MRUDP {
             long int rt = static_cast<long int>(recvtime);
             long int ft = static_cast<long int>(fb_send_time);
             return g_video_rtp_recv_callback(dwTID, pBuffer, dwLength, rt, ft);
+        }
+        if (raw && raw[0] == 0x02 && g_audio_rtp_recv_callback &&
+            ((dwLength >= 13 && ((raw[1] & 0xC0) == 0x80)) ||
+             (dwLength >= 1 + sizeof(uint64_t) + 12 && ((raw[1 + sizeof(uint64_t)] & 0xC0) == 0x80)))) {
+            static uint64_t s_fwd_pkts = 0;
+            static uint64_t s_fwd_bytes = 0;
+            static int64_t s_last_ms = 0;
+            s_fwd_pkts += 1;
+            s_fwd_bytes += static_cast<uint64_t>(dwLength);
+            const int64_t now_ms = static_cast<int64_t>(GetTickCount());
+            if (s_last_ms == 0) s_last_ms = now_ms;
+            const int64_t dt = now_ms - s_last_ms;
+            if (dt >= 1000) {
+                const uint64_t pps = (s_fwd_pkts * 1000ULL) / static_cast<uint64_t>(dt);
+                const uint64_t kbps = (s_fwd_bytes * 8ULL) / static_cast<uint64_t>(dt);
+                std::cout << "[AudioRtp] via MRUDP from=" << dwTID
+                          << " pps=" << pps
+                          << " kbps=" << kbps
+                          << std::endl;
+                s_fwd_pkts = 0;
+                s_fwd_bytes = 0;
+                s_last_ms = now_ms;
+            }
+            long int rt = static_cast<long int>(recvtime);
+            long int ft = static_cast<long int>(fb_send_time);
+            return g_audio_rtp_recv_callback(dwTID, pBuffer, dwLength, rt, ft);
         }
      /**
 		 * 由于本模块通过pBuffer的首字节来辨析数据，所以不需要区分dwTID

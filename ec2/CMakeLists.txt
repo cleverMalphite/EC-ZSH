@@ -75,6 +75,8 @@ add_executable(ec_xgz_ui
         public/_public.cpp
         Util/LockGuard.h
         Util/DataUpdater.h
+        Util/AudioRtp_callback.h
+        Util/AudioRtp_callback.cpp
         ec2_ui_temp_cmake/main.cpp
         ec2_ui_temp_cmake/function.cpp
         ec2_ui_temp_cmake/mainwindow.cpp
@@ -82,6 +84,10 @@ add_executable(ec_xgz_ui
         ec2_ui_temp_cmake/VideoReceiver.cpp
         ec2_ui_temp_cmake/VideoSender.cpp
         ec2_ui_temp_cmake/VideoSender.h
+        ec2_ui_temp_cmake/AudioSenderCore.h
+        ec2_ui_temp_cmake/AudioSenderCore.cpp
+        ec2_ui_temp_cmake/AudioReceiverCore.h
+        ec2_ui_temp_cmake/AudioReceiverCore.cpp
         ec2_ui_temp_cmake/playerwidget.h
         ec2_ui_temp_cmake/playerwidget.cpp
 

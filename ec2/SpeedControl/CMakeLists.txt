@@ -12,6 +12,7 @@ SET(SRC_SPEED_CONTROL
   SpeedControlManager.cpp 
   SpeedControlCallBackFunc.cpp
   ../Util/VideoRtp_callback.cpp
+  ../Util/AudioRtp_callback.cpp
 )
 
 add_library(SpeedControl ${SRC_SPEED_CONTROL} )
