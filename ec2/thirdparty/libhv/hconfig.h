@@ -46,11 +46,11 @@
 #endif
 
 #ifndef HAVE_STRLCPY
-#define HAVE_STRLCPY 0
+#define HAVE_STRLCPY 1
 #endif
 
 #ifndef HAVE_STRLCAT
-#define HAVE_STRLCAT 0
+#define HAVE_STRLCAT 1
 #endif
 
 #ifndef HAVE_CLOCK_GETTIME
@@ -92,8 +92,11 @@
 /* #undef WITH_OPENSSL */
 /* #undef WITH_GNUTLS */
 /* #undef WITH_MBEDTLS */
+
 /* #undef ENABLE_UDS */
 /* #undef USE_MULTIMAP */
+
+/* #undef WITH_WEPOLL */
 /* #undef WITH_KCP */
 
 #endif // HV_CONFIG_H_

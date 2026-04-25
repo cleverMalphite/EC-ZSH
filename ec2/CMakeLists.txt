@@ -12,6 +12,23 @@ set(CMAKE_BUILD_TYPE Debug)
 set(INC_DIRS /usr/local/include )
 set(LIB_DIRS /usr/local/lib)
 
+# rpclib（本地源码，未安装到系统）
+set(RPCLIB_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/thirdparty/rpclib/include)
+set(RPCLIB_LIB        ${PROJECT_SOURCE_DIR}/thirdparty/rpclib/build/librpc.a)
+add_library(rpc STATIC IMPORTED GLOBAL)
+set_target_properties(rpc PROPERTIES
+    IMPORTED_LOCATION          ${RPCLIB_LIB}
+    INTERFACE_INCLUDE_DIRECTORIES ${RPCLIB_INCLUDE_DIR}
+)
+
+# libhv（本地源码，未安装到系统）
+set(LIBHV_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/thirdparty/libhv/include)
+set(LIBHV_LIB         ${PROJECT_SOURCE_DIR}/thirdparty/libhv/build/lib/libhv_static.a)
+add_library(hv STATIC IMPORTED GLOBAL)
+set_target_properties(hv PROPERTIES
+    IMPORTED_LOCATION          ${LIBHV_LIB}
+    INTERFACE_INCLUDE_DIRECTORIES ${LIBHV_INCLUDE_DIR}
+)
 
 #打開Qt的MOC功能和UI文件處理功能
 set(CMAKE_AUTOUIC ON)
@@ -28,6 +45,8 @@ pkg_check_modules(GST REQUIRED gstreamer-1.0 gstreamer-app-1.0 gstreamer-video-1
 
 find_package(Protobuf REQUIRED)
 include_directories(${PROTOBUF_INCLUDE_DIRS})
+include_directories(${RPCLIB_INCLUDE_DIR})
+include_directories(${LIBHV_INCLUDE_DIR})
 
 include_directories(SYSTEM "/foo/bar")
 
@@ -312,4 +331,48 @@ target_link_directories(main_bulktransfer_mrudp_thread
 target_include_directories(main_bulktransfer_mrudp_thread
         PRIVATE
         ${INC_DIRS}
+)
+
+# ============================================================
+# ec2_autoconn — 无人机/地面端自动连接界面
+# ============================================================
+add_executable(ec2_autoconn
+        ec2_ui_temp_cmake/main_autoconn.cpp
+        public/_public.cpp
+        ec2_ui_temp_cmake/function.cpp
+        ec2_ui_temp_cmake/AutoConnController.cpp
+        ec2_ui_temp_cmake/AutoConnWindow.cpp
+        ec2_ui_temp_cmake/AutoConnWindow.ui
+        DataTransfer/fileblock/msg_cpp/FileBlockMsg.pb.cc
+        Util/DataUpdater.h
+)
+target_link_libraries(ec2_autoconn
+        Qt5::Core
+        Qt5::Gui
+        Qt5::Widgets
+        Threads::Threads
+        ${Protobuf_LIBRARIES}
+        IniHandler
+        infoHub
+        NetEpollComm
+        NetCombTransferAPI
+        SpeedControl
+        MRUDP
+        RBUDP
+        BigDataTransfer
+        QOS
+        rpc
+        hv
+        ${CMAKE_THREAD_LIBS_INIT}
+)
+target_link_directories(ec2_autoconn
+        PRIVATE
+        /usr/local/lib/
+        ${LIB_DIRS}
+)
+target_include_directories(ec2_autoconn
+        PRIVATE
+        /usr/local/include/
+        ${INC_DIRS}
+        ${GST_INCLUDE_DIRS}
 )

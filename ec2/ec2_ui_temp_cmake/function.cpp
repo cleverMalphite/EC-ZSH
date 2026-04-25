@@ -87,6 +87,8 @@ void SendTaskStatusCallBack(const std::shared_ptr<FileTaskSendStatusInfo> &pInfo
 //         qDebug() << "dataUpdater is nullptr!";
     } else{
         emit dataUpdater->updateSendStatusSignal();
+        // 发送完成/失败时，额外发一次进度信号（携带 task_id），让界面能打印100%结果
+        emit dataUpdater->updateSendProgressSignal(task_id);
     }
 //    qDebug() << "SendTaskStatusCallBack ok";
 }
@@ -138,6 +140,25 @@ void System_start(const char *config_path, bool QosOpen , bool IsRBUDP) {
     InitIniHandler(config_path);
     printf("system start\n");
     DWORD TermId = GetIntegerKeyIni("Main", "DeviceID", 1);
+
+    // 自动创建收发目录（若不存在则创建，避免文件接收时 open failed）
+    {
+        std::string recv_dir = GetStringValueKeyIni("BigDataTransfer", "recv_dir", "../../FileRecv/");
+        std::string send_dir = GetStringValueKeyIni("BigDataTransfer", "send_dir", "../../FileSend/");
+        auto ensureDir = [](const std::string &path) {
+            if (access(path.c_str(), F_OK) != 0) {
+                // 逐级创建目录
+                std::string cmd = "mkdir -p " + path;
+                int ret = system(cmd.c_str());
+                if (ret == 0)
+                    printf("[System_start] 已创建目录: %s\n", path.c_str());
+                else
+                    printf("[System_start] 创建目录失败: %s\n", path.c_str());
+            }
+        };
+        ensureDir(recv_dir);
+        ensureDir(send_dir);
+    }
     // std::cout << "TermId: " << TermId << std::endl; // 输出读取到的值
     TID=TermId;
     bool Is_RBUDP = isrbudp = IsRBUDP;
@@ -388,9 +409,13 @@ bool createClient(std::string localAddr,int localPort,std::string remoteAddr,uns
 
     infohub_instance->value_set("EC", "gui", "Server_infohub");
 
-    //-------infohub rpc server----------
-    sender_infohub_rpcserver.init(infohub_instance, 8000);
-    sender_infohub_rpcserver.async_run(1);
+    //-------infohub rpc server（只初始化一次，防止重试时重复启动）----------
+    static bool s_rpcServerStarted = false;
+    if (!s_rpcServerStarted) {
+        sender_infohub_rpcserver.init(infohub_instance, 8000);
+        sender_infohub_rpcserver.async_run(1);
+        s_rpcServerStarted = true;
+    }
 
     if(isDTU == false) {
         if (CreateTcpClientChannel(localPort, remotePort, localAddr, remoteAddr, 3200, isForceLocalPort))

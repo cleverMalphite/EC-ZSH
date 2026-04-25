@@ -15,6 +15,15 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 set(INC_DIRS /usr/local/include)
 set(LIB_DIRS /usr/local/lib)
 
+# rpclib（本地源码编译，未安装到系统）
+set(RPCLIB_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/rpclib/include)
+set(RPCLIB_LIB_DIR     ${CMAKE_CURRENT_SOURCE_DIR}/../thirdparty/rpclib/build)
+add_library(rpc STATIC IMPORTED)
+set_target_properties(rpc PROPERTIES
+    IMPORTED_LOCATION ${RPCLIB_LIB_DIR}/librpc.a
+    INTERFACE_INCLUDE_DIRECTORIES ${RPCLIB_INCLUDE_DIR}
+)
+
 # 查找库
 find_package(Threads REQUIRED)
 
@@ -26,6 +35,7 @@ pkg_check_modules(GST REQUIRED gstreamer-1.0 gstreamer-app-1.0)
 
 include_directories(${INC_DIRS})
 include_directories(${LIB_DIRS})
+include_directories(${RPCLIB_INCLUDE_DIR})
 
 include_directories(${Protobuf_INCLUDE_DIRS})
 
@@ -82,6 +92,52 @@ add_executable(ec2_ui_test
 #        utilClass/isRBUDP_callback.cpp
 #        utilClass/isRBUDP_callback.h
 )
+
+# ============================================================
+# ec2_autoconn — 无人机/地面端自动连接界面（新界面，不含视频）
+# ============================================================
+add_executable(ec2_autoconn
+        main_autoconn.cpp
+        ../public/_public.cpp
+        function.cpp
+        AutoConnController.cpp
+        AutoConnWindow.cpp
+        AutoConnWindow.ui
+        ${PROJECT_DIR}/DataTransfer/fileblock/msg_cpp/FileBlockMsg.pb.cc
+        ${PROJECT_DIR}/Util/DataUpdater.h
+)
+
+target_link_libraries(ec2_autoconn
+        Qt5::Core
+        Qt5::Gui
+        Qt5::Widgets
+        Threads::Threads
+        ${Protobuf_LIBRARIES}
+        IniHandler
+        infoHub
+        NetEpollComm
+        NetCombTransferAPI
+        SpeedControl
+        MRUDP
+        RBUDP
+        BigDataTransfer
+        QOS
+        rpc
+        hv
+)
+
+target_link_directories(ec2_autoconn
+        PRIVATE
+        /usr/local/lib/
+        ${LIB_DIRS}
+        ${TEST_UI}
+)
+
+target_include_directories(ec2_autoconn PRIVATE
+        ${GST_INCLUDE_DIRS}
+)
+
+# ============================================================
 
 add_executable(ec2_audio_selftest
         audio_selftest.cpp
