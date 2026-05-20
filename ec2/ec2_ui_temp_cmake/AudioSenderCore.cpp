@@ -19,10 +19,16 @@ static void ensure_gst_init_audio_sender() {
 
 static std::string resolve_default_audio_file_path() {
     const QStringList candidates = {
-        QDir::cleanPath(QDir::currentPath() + "/FileSend/AVtest.mp4"),
-        QDir::cleanPath(QDir::currentPath() + "/../FileSend/AVtest.mp4"),
-        QDir::cleanPath(QCoreApplication::applicationDirPath() + "/../FileSend/AVtest.mp4"),
-        QString("/home/itzhou/EC1/EC2_12.8/FileSend/AVtest.mp4"),
+        QDir::cleanPath(QDir::currentPath() + "/FileSend/videotest.mp4"),
+        QDir::cleanPath(QDir::currentPath() + "/../FileSend/videotest.mp4"),
+        QDir::cleanPath(QDir::currentPath() + "/../../FileSend/videotest.mp4"),
+        QDir::cleanPath(QDir::currentPath() + "/../../../FileSend/videotest.mp4"),
+        QDir::cleanPath(QDir::currentPath() + "/../../../../FileSend/videotest.mp4"),
+        QDir::cleanPath(QCoreApplication::applicationDirPath() + "/../FileSend/videotest.mp4"),
+        QDir::cleanPath(QCoreApplication::applicationDirPath() + "/../../FileSend/videotest.mp4"),
+        QDir::cleanPath(QCoreApplication::applicationDirPath() + "/../../../FileSend/videotest.mp4"),
+        QDir::cleanPath(QCoreApplication::applicationDirPath() + "/../../../../FileSend/videotest.mp4"),
+        QDir::cleanPath(QCoreApplication::applicationDirPath() + "/../../../../../FileSend/videotest.mp4"),
     };
 
     for (const auto& path : candidates) {
@@ -30,7 +36,7 @@ static std::string resolve_default_audio_file_path() {
             return path.toStdString();
         }
     }
-    return "FileSend/AVtest.mp4";
+    return "FileSend/videotest.mp4";
 }
 
 static std::string to_file_uri_audio(const std::string& path) {

@@ -64,6 +64,12 @@ namespace SpeedControl {
             return m_dest_tid;
         }
 
+        DWORD GetPendingQueueDepth();
+
+        DWORD GetPendingQueueCapacity() const {
+            return m_buffer_max_size;
+        }
+
     private:
         pthread_mutex_t Mutex_;
         pthread_mutex_t TempSpeedMutex_;
@@ -78,7 +84,7 @@ namespace SpeedControl {
         DWORD m_d_small_cycle = 0;  //预期小循环发包
         DWORD m_d_big_cycle = 0;    //预期大循环发包
         DWORD m_d_expect_time = 0;  //预期大循环所需时间
-        const DWORD m_d_expect_time_per_big_cycle = 100;   //速率调整周期
+        const DWORD m_d_expect_time_per_big_cycle = 10;    //速率调整周期(缩短以减少sleep开销)
         const DWORD m_d_single_packet_length =
                 GetIntegerKeyIni("SpeedControl", "SINGLE_PACKET_LENGTH", 1400);        //目前的包长
         //const DWORD m_d_single_packet_length = 1400;        //目前的包长

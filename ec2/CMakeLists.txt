@@ -152,189 +152,9 @@ target_include_directories(ec_xgz_ui
 )
 
 
-add_executable(ec_singletransfer 
-    main_singletransfer.cpp
-    public/_public.cpp
-    Util/LockGuard.h
-)
-target_link_libraries(ec_singletransfer
-    IniHandler
-    NetEpollComm
-    NetCombTransferAPI
-    SpeedControl
-    MRUDP
-    RBUDP
-    BigDataTransfer
-    QOS
-    rpc
-)
-add_executable(ec_singletransfer_2direction
-    main_singletransfer_2direction.cpp
-    public/_public.cpp
-    Util/LockGuard.h
-)
-target_link_libraries(ec_singletransfer_2direction
-    IniHandler
-    NetEpollComm
-    NetCombTransferAPI
-    SpeedControl
-    MRUDP
-    RBUDP
-    BigDataTransfer
-    QOS
-)
-
-add_executable(ec_bulktransfer
-    main_bulktransfer.cpp
-    public/_public.cpp
-    Util/LockGuard.h
-)
-
-target_link_libraries(ec_bulktransfer
-    IniHandler
-    NetEpollComm
-    NetCombTransferAPI
-    SpeedControl
-    MRUDP
-    RBUDP
-    BigDataTransfer
-    QOS
-)
-
-
-add_executable(main_mrudp1_1server
-    main_mrudp1_1server.cpp
-    public/_public.cpp
-)
-target_link_libraries(main_mrudp1_1server
-    IniHandler
-    NetEpollComm
-    NetCombTransferAPI
-    SpeedControl
-    MRUDP
-    RBUDP
-    BigDataTransfer
-    QOS
-    infoHub
-    rpc
-    ${CMAKE_THREAD_LIBS_INIT}  
-)
-target_link_directories(main_mrudp1_1server
-    PRIVATE
-    ${LIB_DIRS}
-)
-target_include_directories(main_mrudp1_1server
-    PRIVATE
-    ${INC_DIRS}
-)
-
-add_executable(main_mrudp1_1server_2direction
-    main_mrudp1_1server_2direction.cpp
-    public/_public.cpp
-)
-target_link_libraries(main_mrudp1_1server_2direction
-    IniHandler
-    NetEpollComm
-    NetCombTransferAPI
-    SpeedControl
-    MRUDP
-    RBUDP
-    BigDataTransfer
-    QOS
-    infoHub
-    rpc
-    ${CMAKE_THREAD_LIBS_INIT}  
-)
-target_link_directories(main_mrudp1_1server_2direction
-    PRIVATE
-    ${LIB_DIRS}
-)
-target_include_directories(main_mrudp1_1server_2direction
-    PRIVATE
-    ${INC_DIRS}
-)
-
-
-add_executable(main_mrudp1_1server_rpcclient
-    main_mrudp1_1server_rpcclient.cpp
-    public/_public.cpp
-)
-target_link_libraries(main_mrudp1_1server_rpcclient
-    IniHandler
-    NetEpollComm
-    NetCombTransferAPI
-    SpeedControl
-    MRUDP
-    RBUDP
-    BigDataTransfer
-    QOS
-    infoHub
-    rpc
-    ${CMAKE_THREAD_LIBS_INIT}  
-)
-target_link_directories(main_mrudp1_1server_rpcclient
-    PRIVATE
-    ${LIB_DIRS}
-)
-target_include_directories(main_mrudp1_1server_rpcclient
-    PRIVATE
-    ${INC_DIRS}
-)
-
-
-add_executable(ec_bulktransfer_mrudp
-    main_bulktransfer_mrudp.cpp
-    public/_public.cpp
-)
-target_link_libraries(ec_bulktransfer_mrudp
-    IniHandler
-    NetEpollComm
-    NetCombTransferAPI
-    SpeedControl
-    MRUDP
-    RBUDP
-    BigDataTransfer
-    QOS
-    infoHub
-    ${CMAKE_THREAD_LIBS_INIT}  
-)
-target_link_directories(ec_bulktransfer_mrudp
-    PRIVATE
-    ${LIB_DIRS}
-)
-target_include_directories(ec_bulktransfer_mrudp
-    PRIVATE
-    ${INC_DIRS}
-)
-
-
-add_executable(main_bulktransfer_mrudp_thread
-        main_bulktransfer_mrudp_thread.cpp
-        public/_public.cpp
-)
-target_link_libraries(main_bulktransfer_mrudp_thread
-        IniHandler
-        NetEpollComm
-        NetCombTransferAPI
-        SpeedControl
-        MRUDP
-        RBUDP
-        BigDataTransfer
-        QOS
-        infoHub
-        ${CMAKE_THREAD_LIBS_INIT}
-)
-target_link_directories(main_bulktransfer_mrudp_thread
-        PRIVATE
-        ${LIB_DIRS}
-)
-target_include_directories(main_bulktransfer_mrudp_thread
-        PRIVATE
-        ${INC_DIRS}
-)
 
 # ============================================================
-# ec2_autoconn — 无人机/地面端自动连接界面
+# ec2_autoconn — 无人机/地面端自动连接界面（含实时音视频传输）
 # ============================================================
 add_executable(ec2_autoconn
         ec2_ui_temp_cmake/main_autoconn.cpp
@@ -343,6 +163,15 @@ add_executable(ec2_autoconn
         ec2_ui_temp_cmake/AutoConnController.cpp
         ec2_ui_temp_cmake/AutoConnWindow.cpp
         ec2_ui_temp_cmake/AutoConnWindow.ui
+        ec2_ui_temp_cmake/RealtimeStreamDialog.cpp
+        ec2_ui_temp_cmake/SatelliteImageWidget.cpp
+        ec2_ui_temp_cmake/SendHistoryTab.cpp
+        ec2_ui_temp_cmake/ReceiveHistoryTab.cpp
+        ec2_ui_temp_cmake/VideoSender.cpp
+        ec2_ui_temp_cmake/VideoReceiver.cpp
+        ec2_ui_temp_cmake/AudioSenderCore.cpp
+        ec2_ui_temp_cmake/AudioReceiverCore.cpp
+        ec2_ui_temp_cmake/playerwidget.cpp
         DataTransfer/fileblock/msg_cpp/FileBlockMsg.pb.cc
         Util/DataUpdater.h
 )
@@ -352,6 +181,8 @@ target_link_libraries(ec2_autoconn
         Qt5::Widgets
         Threads::Threads
         ${Protobuf_LIBRARIES}
+        ${OpenCV_LIBS}
+        ${GST_LIBRARIES}
         IniHandler
         infoHub
         NetEpollComm

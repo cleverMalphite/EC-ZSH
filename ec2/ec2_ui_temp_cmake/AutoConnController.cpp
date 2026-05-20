@@ -6,6 +6,19 @@
 #include <QString>
 #include "../BigDataTransfer/BigDataTransferApi.h"
 
+#include <arpa/inet.h>
+#include <climits>
+#include <cstdio>
+#include <cstdlib>
+#include <cerrno>
+#include <cctype>
+#include <cstring>
+#include <fcntl.h>
+#include <netinet/in.h>
+#include <sstream>
+#include <sys/socket.h>
+#include <unistd.h>
+
 // 引用 function.cpp 里的全局终端列表和任务状态
 extern std::vector<std::shared_ptr<ClientTemplate>> _clientTemplate;
 extern std::vector<std::shared_ptr<SendTaskState>>  _sendTaskState;
@@ -14,6 +27,71 @@ extern pthread_mutex_t _terminal_Mutex;
 extern pthread_mutex_t _sendTask_Mutex;
 extern pthread_mutex_t _recvTask_Mutex;
 extern DataUpdater *dataUpdater;
+
+namespace {
+
+std::string trim_copy(const std::string &input)
+{
+    size_t start = 0;
+    while (start < input.size() && std::isspace(static_cast<unsigned char>(input[start]))) {
+        ++start;
+    }
+
+    size_t end = input.size();
+    while (end > start && std::isspace(static_cast<unsigned char>(input[end - 1]))) {
+        --end;
+    }
+
+    return input.substr(start, end - start);
+}
+
+std::vector<std::string> split_copy(const std::string &input, char delim)
+{
+    std::vector<std::string> items;
+    std::stringstream ss(input);
+    std::string token;
+    while (std::getline(ss, token, delim)) {
+        items.push_back(trim_copy(token));
+    }
+    return items;
+}
+
+bool parse_positive_int(const std::string &text, int &value)
+{
+    if (text.empty()) {
+        return false;
+    }
+
+    char *end = nullptr;
+    errno = 0;
+    long parsed = std::strtol(text.c_str(), &end, 10);
+    if (errno != 0 || end == text.c_str() || *end != '\0' || parsed <= 0 || parsed > INT_MAX) {
+        return false;
+    }
+
+    value = static_cast<int>(parsed);
+    return true;
+}
+
+bool parse_hello_message(const std::string &msg,
+                         unsigned int &tid,
+                         int &tcpPort,
+                         unsigned int &targetTid)
+{
+    int matched = std::sscanf(msg.c_str(), "DISCOVER_HELLO tid=%u tcp=%d target=%u",
+                              &tid, &tcpPort, &targetTid);
+    return matched == 3 && tid > 0 && tcpPort > 0;
+}
+
+bool parse_ack_message(const std::string &msg,
+                       unsigned int &tid,
+                       int &tcpPort)
+{
+    int matched = std::sscanf(msg.c_str(), "DISCOVER_ACK tid=%u tcp=%d", &tid, &tcpPort);
+    return matched == 2 && tid > 0 && tcpPort > 0;
+}
+
+} // namespace
 
 // ============================================================
 //  构造 / 析构
@@ -25,14 +103,17 @@ AutoConnController::AutoConnController(QObject *parent)
     m_retryTimer     = new QTimer(this);
     m_heartbeatTimer = new QTimer(this);
     m_rateTimer      = new QTimer(this);
+    m_discoveryTimer = new QTimer(this);
 
     m_retryTimer->setSingleShot(false);
     m_heartbeatTimer->setSingleShot(false);
     m_rateTimer->setSingleShot(false);
+    m_discoveryTimer->setSingleShot(false);
 
     connect(m_retryTimer,     &QTimer::timeout, this, &AutoConnController::onRetryTimer);
     connect(m_heartbeatTimer, &QTimer::timeout, this, &AutoConnController::onHeartbeatTimer);
     connect(m_rateTimer,      &QTimer::timeout, this, &AutoConnController::onRateTimer);
+    connect(m_discoveryTimer, &QTimer::timeout, this, &AutoConnController::onDiscoveryTimer);
 }
 
 AutoConnController::~AutoConnController()
@@ -46,9 +127,21 @@ AutoConnController::~AutoConnController()
 
 void AutoConnController::start()
 {
-    if (m_stopped) return;
+    m_stopped = false;
 
     readConfig();
+
+    if (m_enableDiscovery) {
+        if (initDiscoverySocket()) {
+            m_discoveryTimer->start(m_discoveryIntervalMs);
+            emit logMessage(QString("[Discovery] 已启用，端口=%1，固定候选=%2")
+                                .arg(m_discoveryPort)
+                                .arg(static_cast<int>(m_discoveryPeers.size())));
+        } else {
+            emit logMessage("[Discovery] 初始化失败，回退固定 RemoteIP 重连模式");
+            m_enableDiscovery = false;
+        }
+    }
 
     emit logMessage(QString("[AutoConn] 角色: %1  本地 %2:%3  远端 %4:%5")
                         .arg(m_role == NodeRole::UAV ? "无人机端(UAV)" : "地面端(GROUND)")
@@ -73,7 +166,7 @@ void AutoConnController::start()
                             unsigned int pct = s->_process;
                             QString name = QString::fromStdString(s->_taskName);
                             unsigned int state = s->_taskState;
-                            emit sendProgressUpdated(task_id, name, kbps, pct);
+                            emit sendProgressUpdated(task_id, s->_TID, name, kbps, pct);
                             // 发送完成/失败时补打结果日志
                             if (state == 1) {
                                 emit logMessage(QString("[Transfer] 任务#%1 %2 发送完成 100%  平均 %3 kbps")
@@ -93,11 +186,20 @@ void AutoConnController::start()
                     MutexLockGuard guard(_recvTask_Mutex);
                     for (const auto &r : _recvTaskState) {
                         if (r && r->_taskID == task_id) {
+                            float kbps = r->_transferSpeed;
+                            if (kbps <= 0.0f) {
+                                auto recvBw = BigDataTransfer_GetAllFileRecvBandWidth();
+                                if (recvBw && recvBw->m_status == 200) {
+                                    kbps = recvBw->m_total_rate;
+                                }
+                            }
+                            QString name = QString::fromStdString(r->_taskName);
+                            emit recvProgressUpdated(task_id, r->_TID, name, kbps, r->_process);
                             emit logMessage(QString("[Transfer] 接收任务#%1 %2  %3%  %4 kbps")
                                 .arg(task_id)
-                                .arg(QString::fromStdString(r->_taskName))
+                                .arg(name)
                                 .arg(r->_process)
-                                .arg(r->_transferSpeed, 0, 'f', 1));
+                                .arg(kbps, 0, 'f', 1));
                             break;
                         }
                     }
@@ -149,13 +251,49 @@ void AutoConnController::stop()
     if (m_retryTimer)     { m_retryTimer->stop(); }
     if (m_heartbeatTimer) { m_heartbeatTimer->stop(); }
     if (m_rateTimer)      { m_rateTimer->stop(); }
+    if (m_discoveryTimer) { m_discoveryTimer->stop(); }
+    closeDiscoverySocket();
 }
 
 void AutoConnController::requestReconnect()
 {
-    if (m_state == ConnState::CONNECTED) return;
     emit logMessage("[AutoConn] 手动触发重连");
     doReconnect();
+}
+
+void AutoConnController::applyManualConnection(const QString &localAddr,
+                                               int localPort,
+                                               const QString &remoteAddr,
+                                               int remotePort)
+{
+    const QString local = localAddr.trimmed();
+    const QString remote = remoteAddr.trimmed();
+
+    if (!local.isEmpty()) {
+        m_localAddr = local.toStdString();
+    }
+    if (!remote.isEmpty()) {
+        m_remoteAddr = remote.toStdString();
+    }
+    if (localPort >= 0 && localPort <= 65535) {
+        m_localPort = localPort;
+    }
+    if (remotePort > 0 && remotePort <= 65535) {
+        m_remotePort = remotePort;
+    }
+
+    m_discoveredRemoteAddr.clear();
+    m_discoveredRemotePort = 0;
+    m_discoveredRemoteTid = 0;
+    m_discoveredRemoteSeenMs = 0;
+
+    emit logMessage(QString("[AutoConn] 手动连接参数已更新: 本地 %1:%2  远端 %3:%4")
+                        .arg(QString::fromStdString(m_localAddr))
+                        .arg(m_localPort)
+                        .arg(QString::fromStdString(m_remoteAddr))
+                        .arg(m_remotePort));
+
+    requestReconnect();
 }
 
 // ============================================================
@@ -169,9 +307,12 @@ void AutoConnController::onRetryTimer()
         m_retryTimer->stop();
         return;
     }
+    std::string targetAddr;
+    int targetPort = 0;
+    resolveConnectTarget(targetAddr, targetPort);
     emit logMessage(QString("[AutoConn] 重试连接 → %1:%2")
-                        .arg(QString::fromStdString(m_remoteAddr))
-                        .arg(m_remotePort));
+                        .arg(QString::fromStdString(targetAddr))
+                        .arg(targetPort));
     doConnect();
 }
 
@@ -209,6 +350,12 @@ void AutoConnController::onHeartbeatTimer()
         }
         // DISCONNECTED 时地面端已有 retryTimer 在跑，UAV端静等即可
     }
+
+    const QStringList onlineTids = collectOnlineTidList();
+    if (onlineTids != m_lastOnlineTidList) {
+        m_lastOnlineTidList = onlineTids;
+        emit terminalListChanged(onlineTids);
+    }
 }
 
 void AutoConnController::onTerminalListUpdated()
@@ -220,6 +367,38 @@ void AutoConnController::onTerminalListUpdated()
     onHeartbeatTimer();  // 立即执行一次心跳逻辑，实时更新连接状态
 }
 
+void AutoConnController::onDiscoveryTimer()
+{
+    if (m_stopped || !m_enableDiscovery) {
+        return;
+    }
+
+    sendDiscoveryHello();
+    drainDiscoveryPackets();
+
+    if (m_role != NodeRole::GROUND || isConnected()) {
+        return;
+    }
+
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+    const bool recentAck = !m_discoveredRemoteAddr.empty()
+                           && (nowMs - m_discoveredRemoteSeenMs <= m_discoveryTimeoutMs);
+    if (!recentAck) {
+        return;
+    }
+
+    if (nowMs - m_lastDiscoveryConnectAttemptMs < 1000) {
+        return;
+    }
+
+    m_lastDiscoveryConnectAttemptMs = nowMs;
+    if (m_state == ConnState::DISCONNECTED) {
+        setState(ConnState::CONNECTING);
+    }
+
+    doConnect();
+}
+
 // ============================================================
 //  private helpers
 // ============================================================
@@ -229,6 +408,7 @@ void AutoConnController::readConfig()
     // 从已初始化的 ini 中读取
     int role = GetIntegerKeyIni("AutoConn", "Role", (int)NodeRole::UAV);
     m_role = (role == 2) ? NodeRole::GROUND : NodeRole::UAV;
+    m_localTid = static_cast<unsigned int>(GetIntegerKeyIni("Main", "DeviceID", 0));
 
     m_localAddr  = GetStringValueKeyIni("AutoConn", "LocalIP",  "127.0.0.1");
     m_localPort  = GetIntegerKeyIni("AutoConn", "LocalPort", 3020);
@@ -238,6 +418,72 @@ void AutoConnController::readConfig()
 
     m_retryIntervalMs    = GetIntegerKeyIni("AutoConn", "RetryIntervalMs",   3000);
     m_heartbeatTimeoutMs = GetIntegerKeyIni("AutoConn", "HeartbeatTimeoutMs", 5000);
+
+    m_discoveredRemoteAddr.clear();
+    m_discoveredRemotePort = 0;
+    m_discoveredRemoteTid = 0;
+    m_discoveredRemoteSeenMs = 0;
+    m_lastDiscoveryConnectAttemptMs = 0;
+
+    m_enableDiscovery     = GetBoolValueKeyIni("AutoConn", "EnableDiscovery", false);
+    m_discoveryPort       = GetIntegerKeyIni("AutoConn", "DiscoveryPort", 39001);
+    m_discoveryIntervalMs = GetIntegerKeyIni("AutoConn", "DiscoveryIntervalMs", 1000);
+    m_discoveryTimeoutMs  = GetIntegerKeyIni("AutoConn", "DiscoveryTimeoutMs", 5000);
+    if (m_discoveryPort <= 0) {
+        m_discoveryPort = 39001;
+    }
+    if (m_discoveryIntervalMs <= 0) {
+        m_discoveryIntervalMs = 1000;
+    }
+    if (m_discoveryTimeoutMs <= 0) {
+        m_discoveryTimeoutMs = 5000;
+    }
+
+    m_discoveryPeers.clear();
+    const std::string peersText = GetStringValueKeyIni("AutoConn", "DiscoveryPeers", "");
+    if (!peersText.empty()) {
+        const auto entries = split_copy(peersText, ',');
+        for (const auto &entry : entries) {
+            if (entry.empty()) {
+                continue;
+            }
+            const auto parts = split_copy(entry, ':');
+            if (parts.size() < 2) {
+                continue;
+            }
+
+            int tid = 0;
+            if (!parse_positive_int(parts[0], tid)) {
+                continue;
+            }
+
+            DiscoveryPeerCfg peer;
+            peer.tid = static_cast<unsigned int>(tid);
+            peer.ip = parts[1];
+            peer.tcpPort = m_remotePort;
+
+            if (parts.size() >= 3) {
+                int parsedPort = 0;
+                if (parse_positive_int(parts[2], parsedPort)) {
+                    peer.tcpPort = parsedPort;
+                }
+            }
+
+            if (peer.ip.empty() || peer.tid == 0) {
+                continue;
+            }
+            m_discoveryPeers.push_back(peer);
+        }
+    }
+
+    // 未配置 DiscoveryPeers 时，至少保留 RemoteTID/RemoteIP 作为一个探测目标。
+    if (m_discoveryPeers.empty() && m_remoteTid > 0 && !m_remoteAddr.empty()) {
+        DiscoveryPeerCfg fallback;
+        fallback.tid = m_remoteTid;
+        fallback.ip = m_remoteAddr;
+        fallback.tcpPort = m_remotePort;
+        m_discoveryPeers.push_back(fallback);
+    }
 }
 
 void AutoConnController::setState(ConnState s)
@@ -268,15 +514,42 @@ void AutoConnController::doStartListening()
 
 void AutoConnController::doConnect()
 {
+    std::string targetAddr;
+    int targetPort = 0;
+    const bool useDiscovered = resolveConnectTarget(targetAddr, targetPort);
+
+    if (useDiscovered) {
+        emit logMessage(QString("[Discovery] 使用探测目标 %1:%2 (TID=%3)")
+                            .arg(QString::fromStdString(targetAddr))
+                            .arg(targetPort)
+                            .arg(m_discoveredRemoteTid));
+    }
+
     // 地面端发起主动连接
     bool ok = createClient(m_localAddr, m_localPort,
-                           m_remoteAddr, (unsigned int)m_remotePort,
+                           targetAddr, (unsigned int)targetPort,
                            false);
     if (!ok) {
         emit logMessage(QString("[AutoConn] 连接 %1:%2 失败，等待重试")
-                            .arg(QString::fromStdString(m_remoteAddr))
-                            .arg(m_remotePort));
+                            .arg(QString::fromStdString(targetAddr))
+                            .arg(targetPort));
     }
+}
+
+bool AutoConnController::resolveConnectTarget(std::string &addr, int &port) const
+{
+    if (m_enableDiscovery && !m_discoveredRemoteAddr.empty()) {
+        const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+        if (nowMs - m_discoveredRemoteSeenMs <= m_discoveryTimeoutMs) {
+            addr = m_discoveredRemoteAddr;
+            port = (m_discoveredRemotePort > 0) ? m_discoveredRemotePort : m_remotePort;
+            return true;
+        }
+    }
+
+    addr = m_remoteAddr;
+    port = m_remotePort;
+    return false;
 }
 
 void AutoConnController::doReconnect()
@@ -319,6 +592,207 @@ unsigned int AutoConnController::getActiveTid() const
     return 0;
 }
 
+QStringList AutoConnController::collectOnlineTidList() const
+{
+    QStringList tids;
+    MutexLockGuard guard(_terminal_Mutex);
+    for (const auto &c : _clientTemplate) {
+        if (c && c->_bRunning && c->_TID > 0) {
+            const QString tidStr = QString::number(c->_TID);
+            if (!tids.contains(tidStr)) {
+                tids.push_back(tidStr);
+            }
+        }
+    }
+    return tids;
+}
+
+bool AutoConnController::initDiscoverySocket()
+{
+    closeDiscoverySocket();
+
+    m_discoverySockFd = ::socket(AF_INET, SOCK_DGRAM, 0);
+    if (m_discoverySockFd < 0) {
+        return false;
+    }
+
+    int one = 1;
+    setsockopt(m_discoverySockFd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+
+    sockaddr_in localAddr;
+    std::memset(&localAddr, 0, sizeof(localAddr));
+    localAddr.sin_family = AF_INET;
+    localAddr.sin_port = htons(static_cast<unsigned short>(m_discoveryPort));
+    localAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    if (::bind(m_discoverySockFd,
+               reinterpret_cast<sockaddr *>(&localAddr),
+               sizeof(localAddr)) != 0) {
+        closeDiscoverySocket();
+        return false;
+    }
+
+    int flags = fcntl(m_discoverySockFd, F_GETFL, 0);
+    if (flags >= 0) {
+        fcntl(m_discoverySockFd, F_SETFL, flags | O_NONBLOCK);
+    }
+
+    return true;
+}
+
+void AutoConnController::closeDiscoverySocket()
+{
+    if (m_discoverySockFd >= 0) {
+        ::close(m_discoverySockFd);
+        m_discoverySockFd = -1;
+    }
+}
+
+void AutoConnController::sendDiscoveryHello()
+{
+    if (m_discoverySockFd < 0 || m_discoveryPeers.empty()) {
+        return;
+    }
+
+    for (const auto &peer : m_discoveryPeers) {
+        if (peer.ip.empty()) {
+            continue;
+        }
+        if (peer.tid == m_localTid) {
+            continue;
+        }
+        if (m_remoteTid > 0 && peer.tid != m_remoteTid) {
+            continue;
+        }
+
+        sockaddr_in peerAddr;
+        std::memset(&peerAddr, 0, sizeof(peerAddr));
+        peerAddr.sin_family = AF_INET;
+        peerAddr.sin_port = htons(static_cast<unsigned short>(m_discoveryPort));
+        if (inet_pton(AF_INET, peer.ip.c_str(), &peerAddr.sin_addr) != 1) {
+            continue;
+        }
+
+        char buffer[160] = {0};
+        std::snprintf(buffer, sizeof(buffer),
+                      "DISCOVER_HELLO tid=%u tcp=%d target=%u",
+                      m_localTid, m_localPort, m_remoteTid);
+
+        ::sendto(m_discoverySockFd,
+                 buffer,
+                 std::strlen(buffer),
+                 0,
+                 reinterpret_cast<sockaddr *>(&peerAddr),
+                 sizeof(peerAddr));
+    }
+}
+
+void AutoConnController::drainDiscoveryPackets()
+{
+    if (m_discoverySockFd < 0) {
+        return;
+    }
+
+    for (;;) {
+        char buffer[512] = {0};
+        sockaddr_in peerAddr;
+        std::memset(&peerAddr, 0, sizeof(peerAddr));
+        socklen_t addrLen = sizeof(peerAddr);
+
+        const ssize_t n = ::recvfrom(m_discoverySockFd,
+                                     buffer,
+                                     sizeof(buffer) - 1,
+                                     0,
+                                     reinterpret_cast<sockaddr *>(&peerAddr),
+                                     &addrLen);
+        if (n < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                break;
+            }
+            break;
+        }
+
+        buffer[n] = '\0';
+        char ipBuf[INET_ADDRSTRLEN] = {0};
+        const char *ip = inet_ntop(AF_INET, &peerAddr.sin_addr, ipBuf, sizeof(ipBuf));
+        if (ip == nullptr) {
+            continue;
+        }
+
+        handleDiscoveryPacket(buffer, ipBuf, ntohs(peerAddr.sin_port));
+    }
+}
+
+void AutoConnController::handleDiscoveryPacket(const std::string &payload,
+                                               const std::string &senderIp,
+                                               unsigned short senderPort)
+{
+    unsigned int tid = 0;
+    int tcpPort = 0;
+    unsigned int targetTid = 0;
+
+    if (parse_hello_message(payload, tid, tcpPort, targetTid)) {
+        if (tid == 0 || tid == m_localTid) {
+            return;
+        }
+        if (targetTid != 0 && m_localTid != 0 && targetTid != m_localTid) {
+            return;
+        }
+
+        char ack[128] = {0};
+        std::snprintf(ack, sizeof(ack), "DISCOVER_ACK tid=%u tcp=%d", m_localTid, m_localPort);
+
+        sockaddr_in ackAddr;
+        std::memset(&ackAddr, 0, sizeof(ackAddr));
+        ackAddr.sin_family = AF_INET;
+        ackAddr.sin_port = htons(senderPort);
+        if (inet_pton(AF_INET, senderIp.c_str(), &ackAddr.sin_addr) == 1) {
+            ::sendto(m_discoverySockFd,
+                     ack,
+                     std::strlen(ack),
+                     0,
+                     reinterpret_cast<sockaddr *>(&ackAddr),
+                     sizeof(ackAddr));
+        }
+        return;
+    }
+
+    if (parse_ack_message(payload, tid, tcpPort)) {
+        onDiscoveryAck(tid, tcpPort, senderIp);
+    }
+}
+
+void AutoConnController::onDiscoveryAck(unsigned int tid,
+                                        int tcpPort,
+                                        const std::string &senderIp)
+{
+    if (tid == 0 || senderIp.empty()) {
+        return;
+    }
+    if (m_localTid != 0 && tid == m_localTid) {
+        return;
+    }
+    if (m_remoteTid > 0 && tid != m_remoteTid) {
+        return;
+    }
+
+    const bool changed = (m_discoveredRemoteAddr != senderIp)
+                         || (m_discoveredRemotePort != tcpPort)
+                         || (m_discoveredRemoteTid != tid);
+
+    m_discoveredRemoteAddr = senderIp;
+    m_discoveredRemotePort = tcpPort;
+    m_discoveredRemoteTid = tid;
+    m_discoveredRemoteSeenMs = QDateTime::currentMSecsSinceEpoch();
+
+    if (changed) {
+        emit logMessage(QString("[Discovery] 发现对端 TID=%1 %2:%3")
+                            .arg(tid)
+                            .arg(QString::fromStdString(senderIp))
+                            .arg(tcpPort));
+    }
+}
+
 // ============================================================
 //  速率轮询
 // ============================================================
@@ -340,7 +814,24 @@ void AutoConnController::onRateTimer()
         recvKbps = recvBw->m_total_rate;
     }
 
+    sendKbps = smoothRate(m_sendRateSamples, sendKbps);
+    recvKbps = smoothRate(m_recvRateSamples, recvKbps);
+
     emit transferRateUpdated(sendKbps, recvKbps);
+}
+
+float AutoConnController::smoothRate(std::deque<float> &samples, float value)
+{
+    samples.push_back(value);
+    while (samples.size() > kRateSmoothSampleCount) {
+        samples.pop_front();
+    }
+
+    float total = 0.0f;
+    for (float sample : samples) {
+        total += sample;
+    }
+    return samples.empty() ? 0.0f : (total / static_cast<float>(samples.size()));
 }
 
 // ============================================================
@@ -352,6 +843,17 @@ bool AutoConnController::sendFile(const std::string &filePath, const std::string
     unsigned int tid = getActiveTid();
     if (tid == 0) {
         emit logMessage("[Transfer] 未连接，无法发送文件");
+        return false;
+    }
+    return createTransferSendTask(tid, fileName, filePath);
+}
+
+bool AutoConnController::sendFileToTid(unsigned int tid,
+                                       const std::string &filePath,
+                                       const std::string &fileName)
+{
+    if (tid == 0) {
+        emit logMessage("[Transfer] 目标终端无效，无法发送文件");
         return false;
     }
     return createTransferSendTask(tid, fileName, filePath);

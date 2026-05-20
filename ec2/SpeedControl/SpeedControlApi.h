@@ -77,4 +77,7 @@ bool SpeedControlQoSSpeedInfo(TermSpeedInfo term_speed_info);
 //-------------------------------速率设置函数(供用户调用)-------------------------------
 bool ExChangeTransSpeedOfTID(DWORD nTID, DWORD nExpectSpeed);
 
+//-------------------------------链路状态查询函数(供上层自适应控制调用)-------------------------------
+bool GetSpeedControlQueueStats(DWORD nTID, DWORD &pendingPackets, DWORD &capacityPackets);
+
 #endif //SPEEDCONTROL_LIBRARY_H

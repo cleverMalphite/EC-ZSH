@@ -351,3 +351,21 @@ bool ExChangeTransSpeedOfTID(DWORD nTID, DWORD nExpectSpeed) {
     }
     return false;
 }
+
+bool GetSpeedControlQueueStats(DWORD nTID, DWORD &pendingPackets, DWORD &capacityPackets) {
+    pendingPackets = 0;
+    capacityPackets = 0;
+    if (!SpeedControl::gSpeedControlManager) {
+        return false;
+    }
+
+    std::shared_ptr<SpeedControl::Term2TermTransmission> p_temp_t2t =
+        SpeedControl::gSpeedControlManager->GetTerm2TermTransMission(nTID);
+    if (!p_temp_t2t) {
+        return false;
+    }
+
+    pendingPackets = p_temp_t2t->GetPendingQueueDepth();
+    capacityPackets = p_temp_t2t->GetPendingQueueCapacity();
+    return true;
+}

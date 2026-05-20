@@ -7,6 +7,7 @@
 #include <QTimer>
 #include <future>
 #include <thread>
+#include <chrono>
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui_c.h>
 #include "playerwidget.h"
@@ -33,7 +34,7 @@ class VideoReceiver : public QWidget
     Q_OBJECT
 
 public:
-    VideoReceiver(QWidget *parent = nullptr);
+    VideoReceiver(QWidget *parent = nullptr, bool forceReceive = false);
     void ShowImage(cv::Mat& mat);
     ~VideoReceiver();
     void init();
@@ -61,6 +62,8 @@ public:
     void reset();
     int getVideoPort();
 
+    PlayerWidget *playerWidget = nullptr;
+
 public slots:
     void onRecvVideoData(QByteArray data,unsigned int dataLength,unsigned int packetIndex);
 
@@ -72,24 +75,22 @@ signals:
 private slots:
     void on_pushButton_return_clicked();
     void on_timer_check_appsink();
-    void on_timer_send_feedback();
 
 private:
+    void updateJitterStats();
+    void maybeAdjustJitterLatency();
     bool exit_flag;
 
     // GStreamer members
     GstElement *pipeline = nullptr;
     GstElement *appsink = nullptr;
     GstElement *appsrc = nullptr;
+    GstElement *jitterbuffer = nullptr;
     QTimer *timer_appsink = nullptr;
-    QTimer *timer_feedback = nullptr;
 
     int fps;
 
     bool is_play = false;
-
-    //houlc playerWidget
-    PlayerWidget *playerWidget;
 
     //houlc data rate statistic
     QTimer *timer_test;
@@ -103,13 +104,14 @@ private:
 
     int videoListenPort;
     DWORD m_expectedRemoteTID = 0;
-    DWORD m_lastRemoteTID = 0;
-    bool m_hasSeq = false;
-    uint16_t m_lastSeq = 0;
-    uint64_t m_recvBytesWindow = 0;
-    uint32_t m_recvPktsWindow = 0;
-    uint32_t m_lostPktsWindow = 0;
-    QElapsedTimer m_feedbackClock;
+
+    std::mutex m_jitterMutex;
+    bool m_hasArrival = false;
+    std::chrono::steady_clock::time_point m_lastArrival;
+    double m_interArrivalAvgMs = 0.0;
+    double m_jitterEmaMs = 0.0;
+    int m_latencyCurrentMs = 200;
+    QElapsedTimer m_jitterAdjustClock;
 
     QElapsedTimer frameClock;
     qint64 lastFrameAtMs;

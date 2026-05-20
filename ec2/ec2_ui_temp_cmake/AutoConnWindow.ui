@@ -7,11 +7,11 @@
     <x>0</x>
     <y>0</y>
     <width>920</width>
-    <height>780</height>
+    <height>850</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>应急通信系统</string>
+    <string>异构网络通信传输系统</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="mainVLayout">
@@ -35,7 +35,7 @@
        <property name="rightMargin"><number>20</number></property>
        <item>
         <widget class="QLabel" name="titleLabel">
-         <property name="text"><string>应急通信系统</string></property>
+         <property name="text"><string>异构网络通信传输系统</string></property>
          <property name="styleSheet">
           <string>color: #ffffff; font-size: 18px; font-weight: bold;</string>
          </property>
@@ -70,127 +70,117 @@
     <item>
      <widget class="QWidget" name="contentWidget">
       <layout class="QVBoxLayout" name="contentVLayout">
-       <property name="spacing"><number>20</number></property>
-       <property name="leftMargin"><number>40</number></property>
-       <property name="rightMargin"><number>40</number></property>
-       <property name="topMargin"><number>30</number></property>
-       <property name="bottomMargin"><number>30</number></property>
+       <property name="spacing"><number>16</number></property>
+       <property name="leftMargin"><number>36</number></property>
+       <property name="rightMargin"><number>36</number></property>
+       <property name="topMargin"><number>24</number></property>
+       <property name="bottomMargin"><number>24</number></property>
 
-       <!-- ===== 连接状态卡片 ===== -->
+       <!-- ===== 图片展示卡片（原状态指示灯区域改造） ===== -->
        <item>
-        <widget class="QFrame" name="statusCard">
+        <widget class="QFrame" name="imageCard">
          <property name="styleSheet">
           <string>
            QFrame {
                background-color: #f0f4fa;
-               border-radius: 12px;
+               border-radius: 10px;
+               border: 2px solid #7ec850;
+           }
+          </string>
+         </property>
+         <layout class="QVBoxLayout" name="imageCardLayout">
+          <property name="spacing"><number>0</number></property>
+          <property name="leftMargin"><number>4</number></property>
+          <property name="rightMargin"><number>4</number></property>
+          <property name="topMargin"><number>4</number></property>
+          <property name="bottomMargin"><number>4</number></property>
+          <item>
+           <widget class="QWidget" name="imageContainer">
+            <property name="minimumHeight"><number>160</number></property>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Expanding"/>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+
+       <!-- ===== 连接信息行（精简为单行紧凑布局） ===== -->
+       <item>
+        <widget class="QFrame" name="infoCard">
+         <property name="styleSheet">
+          <string>
+           QFrame {
+               background-color: #f8fafc;
+               border-radius: 8px;
                border: 1px solid #d0daea;
            }
           </string>
          </property>
-         <layout class="QVBoxLayout" name="statusCardLayout">
-          <property name="spacing"><number>16</number></property>
-          <property name="leftMargin"><number>30</number></property>
-          <property name="rightMargin"><number>30</number></property>
-          <property name="topMargin"><number>24</number></property>
-          <property name="bottomMargin"><number>24</number></property>
+         <layout class="QGridLayout" name="infoGrid">
+          <property name="horizontalSpacing"><number>16</number></property>
+          <property name="verticalSpacing"><number>6</number></property>
+          <property name="leftMargin"><number>16</number></property>
+          <property name="rightMargin"><number>16</number></property>
+          <property name="topMargin"><number>12</number></property>
+          <property name="bottomMargin"><number>12</number></property>
 
-          <!-- 状态指示灯（纯圆点，无文字） -->
-          <item>
-           <layout class="QHBoxLayout">
-            <item>
-             <spacer><property name="orientation"><enum>Qt::Horizontal</enum></property></spacer>
-            </item>
-            <item>
-             <widget class="QLabel" name="statusDot">
-              <property name="text"><string>●</string></property>
-              <property name="styleSheet">
-               <string>color: #999999; font-size: 48px;</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignCenter</set>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <spacer><property name="orientation"><enum>Qt::Horizontal</enum></property></spacer>
-            </item>
-           </layout>
+          <item row="0" column="0">
+           <widget class="QLabel">
+            <property name="text"><string>本地地址</string></property>
+            <property name="styleSheet"><string>color: #888888; font-size: 13px;</string></property>
+           </widget>
           </item>
-
-          <!-- 分割线 -->
-          <item>
-           <widget class="QFrame" name="divider1">
-            <property name="frameShape"><enum>QFrame::HLine</enum></property>
-            <property name="frameShadow"><enum>QFrame::Sunken</enum></property>
-            <property name="styleSheet"><string>color: #c8d4e8;</string></property>
+          <item row="0" column="1">
+           <widget class="QLabel" name="localAddrLabel">
+            <property name="text"><string>--</string></property>
+            <property name="styleSheet"><string>color: #333333; font-size: 13px; font-weight: bold;</string></property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QLabel">
+            <property name="text"><string>远端地址</string></property>
+            <property name="styleSheet"><string>color: #888888; font-size: 13px;</string></property>
+           </widget>
+          </item>
+          <item row="0" column="3">
+           <widget class="QLabel" name="remoteAddrLabel">
+            <property name="text"><string>--</string></property>
+            <property name="styleSheet"><string>color: #333333; font-size: 13px; font-weight: bold;</string></property>
            </widget>
           </item>
 
-          <!-- 连接信息网格 -->
-          <item>
-           <layout class="QGridLayout" name="infoGrid">
-            <property name="horizontalSpacing"><number>20</number></property>
-            <property name="verticalSpacing"><number>10</number></property>
-
-            <item row="0" column="0">
-             <widget class="QLabel">
-              <property name="text"><string>本地地址</string></property>
-              <property name="styleSheet"><string>color: #888888; font-size: 13px;</string></property>
-             </widget>
-            </item>
-            <item row="0" column="1">
-             <widget class="QLabel" name="localAddrLabel">
-              <property name="text"><string>--</string></property>
-              <property name="styleSheet"><string>color: #333333; font-size: 13px; font-weight: bold;</string></property>
-             </widget>
-            </item>
-            <item row="0" column="2">
-             <widget class="QLabel">
-              <property name="text"><string>远端地址</string></property>
-              <property name="styleSheet"><string>color: #888888; font-size: 13px;</string></property>
-             </widget>
-            </item>
-            <item row="0" column="3">
-             <widget class="QLabel" name="remoteAddrLabel">
-              <property name="text"><string>--</string></property>
-              <property name="styleSheet"><string>color: #333333; font-size: 13px; font-weight: bold;</string></property>
-             </widget>
-            </item>
-
-            <item row="1" column="0">
-             <widget class="QLabel">
-              <property name="text"><string>对端 TID</string></property>
-              <property name="styleSheet"><string>color: #888888; font-size: 13px;</string></property>
-             </widget>
-            </item>
-            <item row="1" column="1">
-             <widget class="QLabel" name="remoteTidLabel">
-              <property name="text"><string>--</string></property>
-              <property name="styleSheet"><string>color: #333333; font-size: 13px; font-weight: bold;</string></property>
-             </widget>
-            </item>
-            <item row="1" column="2">
-             <widget class="QLabel">
-              <property name="text"><string>连接持续</string></property>
-              <property name="styleSheet"><string>color: #888888; font-size: 13px;</string></property>
-             </widget>
-            </item>
-            <item row="1" column="3">
-             <widget class="QLabel" name="uptimeLabel">
-              <property name="text"><string>--</string></property>
-              <property name="styleSheet"><string>color: #333333; font-size: 13px; font-weight: bold;</string></property>
-             </widget>
-            </item>
-
-           </layout>
+          <item row="1" column="0">
+           <widget class="QLabel">
+            <property name="text"><string>对端 TID</string></property>
+            <property name="styleSheet"><string>color: #888888; font-size: 13px;</string></property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLabel" name="remoteTidLabel">
+            <property name="text"><string>--</string></property>
+            <property name="styleSheet"><string>color: #333333; font-size: 13px; font-weight: bold;</string></property>
+           </widget>
+          </item>
+          <item row="1" column="2">
+           <widget class="QLabel">
+            <property name="text"><string>连接持续</string></property>
+            <property name="styleSheet"><string>color: #888888; font-size: 13px;</string></property>
+           </widget>
+          </item>
+          <item row="1" column="3">
+           <widget class="QLabel" name="uptimeLabel">
+            <property name="text"><string>--</string></property>
+            <property name="styleSheet"><string>color: #333333; font-size: 13px; font-weight: bold;</string></property>
+           </widget>
           </item>
 
          </layout>
         </widget>
        </item>
 
-       <!-- ===== 操作区：仅有一个"手动重连"按钮（正常状态隐藏） ===== -->
+       <!-- ===== 操作区：手动重连按钮 ===== -->
        <item>
         <layout class="QHBoxLayout">
          <item>
@@ -212,6 +202,27 @@
              }
              QPushButton:hover { background-color: #4a80bb; }
              QPushButton:pressed { background-color: #2a5e95; }
+             QPushButton:disabled { background-color: #aaaaaa; color: #dddddd; }
+            </string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="realtimeBtn">
+           <property name="text"><string>实时传输</string></property>
+           <property name="minimumSize">
+            <size><width>140</width><height>40</height></size>
+           </property>
+           <property name="styleSheet">
+            <string>
+             QPushButton {
+                 background-color: #e67e22;
+                 color: white;
+                 border-radius: 6px;
+                 font-size: 14px;
+             }
+             QPushButton:hover { background-color: #f39c12; }
+             QPushButton:pressed { background-color: #d35400; }
              QPushButton:disabled { background-color: #aaaaaa; color: #dddddd; }
             </string>
            </property>
@@ -244,7 +255,6 @@
           <property name="margin"><number>12</number></property>
           <property name="spacing"><number>8</number></property>
 
-          <!-- 速率显示行 -->
           <item>
            <layout class="QHBoxLayout">
             <item>
@@ -280,7 +290,54 @@
            </layout>
           </item>
 
-          <!-- 文件选择 + 发送按钮行 -->
+          <item>
+           <layout class="QHBoxLayout">
+            <item>
+             <widget class="QLabel">
+              <property name="text"><string>在线终端：</string></property>
+              <property name="styleSheet"><string>color: #666666; font-size: 13px;</string></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="connectedTerminalsLabel">
+              <property name="text"><string>--</string></property>
+              <property name="styleSheet"><string>color: #1a2a4a; font-size: 13px; font-weight: bold; min-width: 120px;</string></property>
+             </widget>
+            </item>
+            <item>
+             <spacer><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>20</width><height>0</height></size></property></spacer>
+            </item>
+            <item>
+             <widget class="QLabel">
+              <property name="text"><string>目标终端：</string></property>
+              <property name="styleSheet"><string>color: #666666; font-size: 13px;</string></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="targetTidCombo">
+              <property name="minimumSize">
+               <size><width>120</width><height>30</height></size>
+              </property>
+              <property name="styleSheet">
+               <string>
+                QComboBox {
+                    border: 1px solid #c8d4e8;
+                    border-radius: 4px;
+                    padding: 2px 8px;
+                    font-size: 13px;
+                    background: #f8fafc;
+                    color: #333333;
+                }
+               </string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer><property name="orientation"><enum>Qt::Horizontal</enum></property></spacer>
+            </item>
+           </layout>
+          </item>
+
           <item>
            <layout class="QHBoxLayout">
             <item>
@@ -352,43 +409,44 @@
         </widget>
        </item>
 
-       <!-- ===== 日志区 ===== -->
+       <!-- ===== 底部信息区（Tab 切换：运行日志 / 发送历史 / 接收历史） ===== -->
        <item>
-        <widget class="QGroupBox" name="logGroup">
-         <property name="title"><string>运行日志</string></property>
+        <widget class="QTabWidget" name="infoTabWidget">
          <property name="styleSheet">
           <string>
-           QGroupBox {
-               font-size: 13px;
-               color: #555555;
+           QTabWidget::pane {
                border: 1px solid #c8d4e8;
                border-radius: 8px;
-               margin-top: 8px;
-               padding-top: 8px;
+               background-color: #ffffff;
+               top: -2px;
            }
-           QGroupBox::title { subcontrol-origin: margin; left: 12px; }
+           QTabBar::tab {
+               background-color: #e8eef6;
+               color: #666666;
+               font-size: 13px;
+               padding: 8px 24px;
+               border-top-left-radius: 6px;
+               border-top-right-radius: 6px;
+               margin-right: 3px;
+           }
+           QTabBar::tab:selected {
+               background-color: #ffffff;
+               color: #1a2a4a;
+               font-weight: bold;
+               border-bottom: 2px solid #3a6ea5;
+           }
+           QTabBar::tab:hover:!selected {
+               background-color: #d8e4f2;
+           }
           </string>
          </property>
-         <layout class="QVBoxLayout">
-          <property name="margin"><number>8</number></property>
-          <item>
-           <widget class="QPlainTextEdit" name="logEdit">
-            <property name="readOnly"><bool>true</bool></property>
-            <property name="maximumBlockCount"><number>200</number></property>
-            <property name="styleSheet">
-             <string>
-              QPlainTextEdit {
-                  background-color: #f8fafc;
-                  color: #333333;
-                  font-family: Monospace;
-                  font-size: 12px;
-                  border: none;
-              }
-             </string>
-            </property>
-           </widget>
-          </item>
-         </layout>
+         <property name="tabPosition"><enum>North</enum></property>
+         <property name="documentMode"><bool>false</bool></property>
+         <property name="tabsClosable"><bool>false</bool></property>
+         <property name="movable"><bool>false</bool></property>
+
+         <!-- Tab 页面占位符，由代码动态填充自定义 Widget -->
+
         </widget>
        </item>
 

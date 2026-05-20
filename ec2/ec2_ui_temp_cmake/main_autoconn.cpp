@@ -1,6 +1,9 @@
 #include "AutoConnWindow.h"
 #include "AutoConnController.h"
+#include "VideoReceiver.h"
 #include "function.h"
+
+VideoReceiver *g_videoReceiver = nullptr;
 
 #include <QApplication>
 #include <unistd.h>
@@ -147,10 +150,13 @@ int main(int argc, char *argv[])
     // 创建窗口（纯 UI，依赖控制器信号）
     AutoConnWindow *window = new AutoConnWindow(ctrl);
     window->setWindowTitle(
-        QString("应急通信系统 - %1 (TID %2)")
-            .arg(gUiRole == 1 ? "无人机端" : "地面端")
+        QString("异构网络通信传输系统 (TID %1)")
             .arg(currentTid));
     window->show();
+
+    // 创建视频接收器（后台运行，自动注册 RTP 回调）
+    // forceReceive=true 使接收管线在任意角色下均启动，以便能接收对端的实时流
+    g_videoReceiver = new VideoReceiver(nullptr, true);
 
     // 控制器在 show() 之后启动，确保信号能被 UI 收到
     ctrl->start();

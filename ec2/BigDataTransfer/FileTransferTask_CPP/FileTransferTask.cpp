@@ -39,7 +39,7 @@ namespace BigDataTransfer {
 
         //**********************调用回调函数***************************
         m_timestamp_end = GetTickCount();
-        ComputeTransferSpeedKbps();
+        ComputeTransferSpeedKbps(true);
         shared_ptr<FileTaskRecvStatusInfo> info = std::make_shared<FileTaskRecvStatusInfo>
                 (m_task_id, m_src_term_id, m_file_name, m_file_absolute_name, m_file_state,
                  m_speed_kbps/*接收速率另外确定*/, (m_timestamp_end - m_timestamp_start) , m_file_length);
@@ -70,22 +70,27 @@ namespace BigDataTransfer {
         return true;
     }
 
-    DWORD FileTransferTask::ComputeTransferSpeedKbps() {
-        if (m_packet_transfered_length_count < MIN_COMPUTE_LENGTH_FOR_SPEED) {
-//            printf("transferTask:computeSpeed.2\n");
+    DWORD FileTransferTask::ComputeTransferSpeedKbps(bool force) {
+        const DWORD now = GetTickCount();
+        const DWORD elapsed = now - m_packet_transfered_start_time;
+
+        if (!force && elapsed < SPEED_WINDOW_MS) {
             return m_speed_kbps;
         }
-        m_packet_transfered_end_time = GetTickCount();    //一个统计周期结束
-        if (m_packet_transfered_end_time <= m_packet_transfered_start_time) {
-//            printf("transferTask:computeSpeed.3\n");
+
+        if (elapsed == 0 || m_packet_transfered_length_count == 0) {
+            if (force) {
+                m_packet_transfered_start_time = now;
+                m_packet_transfered_end_time = now;
+            }
             return m_speed_kbps;
         }
-        m_speed_kbps = ((m_packet_transfered_length_count) /
-                        (1.0 * (m_packet_transfered_end_time - m_packet_transfered_start_time)));    //KBps
-//        printf("transferTask:computeSpeed.1,  speed:%d,packet_transfered_length:%d,endTime:%d,startTime:%d\n",m_speed_kbps,m_packet_transfered_length_count,m_packet_transfered_end_time,m_packet_transfered_start_time);
-        //下一个统计周期的准备工作
+
+        m_packet_transfered_end_time = now;    //一个统计周期结束
+        m_speed_kbps = static_cast<float>(m_packet_transfered_length_count) /
+                       static_cast<float>(elapsed);    // bytes/ms，沿用现有UI口径
         m_packet_transfered_length_count = 0;
-        m_packet_transfered_start_time = GetTickCount();
+        m_packet_transfered_start_time = now;
         return m_speed_kbps;
     }
 
@@ -107,6 +112,7 @@ namespace BigDataTransfer {
 
         //**********************调用回调函数*************************
         m_timestamp_end = GetTickCount();
+        ComputeTransferSpeedKbps(true);
         shared_ptr<FileTaskRecvStatusInfo> info = std::make_shared<FileTaskRecvStatusInfo>
                 (m_task_id, m_src_term_id, m_file_name, m_file_absolute_name, m_file_state, m_speed_kbps/*接收速率另外确定*/,
                  (m_timestamp_end - m_timestamp_start) ,

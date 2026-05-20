@@ -67,6 +67,7 @@ namespace BigDataTransfer {
         m_file_state = FILE_SEND_TASK_FAIL;
         //调用回调函数，通知上层模块文件发送任务已经失败
         m_timestamp_end = GetTickCount();
+        ComputeTransferSpeedKbps(true);
         const DWORD file_time_cost_second = (m_timestamp_end - m_timestamp_start) ;
         shared_ptr<FileTaskSendStatusInfo> info = std::make_shared<FileTaskSendStatusInfo>
                 (m_task_id, m_dest_term_id, m_file_name, m_file_absolute_name, m_file_state,
@@ -80,6 +81,7 @@ namespace BigDataTransfer {
         m_file_state = FILE_SEND_TASK_FAIL;
         //调用回调函数，通知上层模块文件发送任务已经失败
         m_timestamp_end = GetTickCount();
+        ComputeTransferSpeedKbps(true);
         const DWORD file_time_cost_second = (m_timestamp_end - m_timestamp_start) ;
         shared_ptr<FileTaskSendStatusInfo> info = std::make_shared<FileTaskSendStatusInfo>
                 (m_task_id, m_dest_term_id, m_file_name, m_file_absolute_name, m_file_state,
@@ -94,6 +96,7 @@ namespace BigDataTransfer {
 //        if (FILE_SEND_TASK_SUCCESS == m_file_state) {
             //调用回调函数，通知上层模块文件发送任务已经成功
             m_timestamp_end = GetTickCount();
+            ComputeTransferSpeedKbps(true);
             //更新状态
             //mark::
             m_file_state = FILE_SEND_TASK_SUCCESS;
@@ -207,7 +210,7 @@ namespace BigDataTransfer {
                         printf("file length : %d\n", m_file_length);
                         printf("-----------------------\n");
 
-                        ComputeTransferSpeedKbps();    //更新当下传输速率，速率已经计算过了，故略去
+                        ComputeTransferSpeedKbps(true);    //完成时强制刷出最后一个窗口
                         shared_ptr<FileTaskSendProgressInfo> info = std::make_shared<FileTaskSendProgressInfo>(
                                 m_task_id, m_dest_term_id, m_file_name, m_speed_kbps,
                                 d_current_progress    //TODO 1000000需要改成文件发送速率
@@ -231,7 +234,7 @@ namespace BigDataTransfer {
                     //printf("[BigDataTransferDebug]::File Transfer Failed, because it has used too much time!\n");
                     //判定文件发送任务失效
                     DoRecvFileSendFailed();
-                    ComputeTransferSpeedKbps();
+                    ComputeTransferSpeedKbps(true);
                     return;
                 }
             }

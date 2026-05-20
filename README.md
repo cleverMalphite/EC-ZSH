@@ -1,252 +1,73 @@
-🚀 Overview
+#EC2-develop
 
-AegisFlow is a production-grade Multi-Agent autonomous software engineering platform designed for enterprise R&D automation.
 
-Unlike traditional AI coding assistants, AegisFlow introduces a collaborative agent architecture capable of completing the entire software development lifecycle autonomously:
+# EC-ZSH
 
-Requirement understanding
-Task decomposition
-Architecture planning
-Code generation
-Unit testing
-Security auditing
-CI/CD deployment
-Runtime evaluation
+## Dynamic ini for new terminals
 
-The system integrates LLM orchestration, long-term memory, RAG knowledge retrieval, tool routing, and distributed task scheduling to create a fully automated development workflow.
+The config loader now auto-creates an ini file when the given path does not exist.
 
-✨ Core Features
-🧠 Multi-Agent Collaborative Architecture
+Default behavior:
+- Device ID is parsed from the ini filename digits (for example `SysConfig103.ini` -> `DeviceID=103`).
+- If filename has no digits, default `DeviceID=101` is used.
+- A full default config is generated, including Main, MRUDP, RBUDP, BigDataTransfer, DTU, Display, FirstOutDoorTest and AutoConn sections.
 
-AegisFlow consists of multiple specialized agents:
-
-Agent	Responsibility
-Planner Agent	Requirement decomposition & workflow planning
-Architect Agent	System design & dependency analysis
-Coder Agent	Code generation & repository modification
-Reviewer Agent	Static analysis & code review
-Test Agent	Unit/integration test generation
-Security Agent	Vulnerability scanning & dependency audit
-DevOps Agent	CI/CD pipeline execution
-Memory Agent	Long-term contextual memory
-Evaluator Agent	Quality scoring & regression analysis
-
-Each agent communicates through an event-driven message bus and shares contextual memory through a centralized vector memory layer.
-
-🏗️ System Architecture
-                    ┌────────────────────┐
-                    │     User Task      │
-                    └─────────┬──────────┘
-                              │
-                    ┌─────────▼──────────┐
-                    │   Planner Agent    │
-                    └─────────┬──────────┘
-                              │
-         ┌────────────────────┼────────────────────┐
-         │                    │                    │
-┌────────▼───────┐  ┌────────▼───────┐  ┌────────▼───────┐
-│ ArchitectAgent │  │  Coder Agent   │  │ Memory Agent   │
-└────────┬───────┘  └────────┬───────┘  └────────┬───────┘
-         │                   │                   │
-         └──────────┬────────┴──────────┬────────┘
-                    │                   │
-          ┌─────────▼────────┐ ┌────────▼────────┐
-          │ Reviewer Agent   │ │  Test Agent     │
-          └─────────┬────────┘ └────────┬────────┘
-                    │                   │
-                    └────────┬──────────┘
-                             │
-                   ┌─────────▼──────────┐
-                   │ Security + DevOps  │
-                   └────────────────────┘
-⚡ Key Capabilities
-1. Autonomous Requirement Decomposition
-
-The Planner Agent converts natural language requirements into executable DAG workflows.
+Runtime override via environment variables (optional):
+- `EC2_DEVICE_ID`
+- `EC2_REMOTE_TID`
+- `EC2_AUTOCONN_ROLE` (1 or 2)
+- `EC2_LOCAL_IP`
+- `EC2_REMOTE_IP`
+- `EC2_LOCAL_PORT`
+- `EC2_REMOTE_PORT`
 
 Example:
 
-Task:
-  Build a payment module
+```bash
+export EC2_DEVICE_ID=103
+export EC2_REMOTE_TID=201
+export EC2_LOCAL_IP=10.0.0.10
+export EC2_REMOTE_IP=10.0.0.11
+export EC2_LOCAL_PORT=4000
+export EC2_REMOTE_PORT=4001
+./ec_singletransfer ../log/new_terminal.log "<inifilepath>../SysConfig103.ini</inifilepath>..."
+```
 
-Subtasks:
-  - Analyze existing architecture
-  - Create API schema
-  - Implement service layer
-  - Generate unit tests
-  - Run security audit
-  - Deploy to staging
-2. Repository-Level Code Understanding
+If `../SysConfig103.ini` does not exist, it is created automatically before loading.
 
-AegisFlow supports:
+## Minimal Discovery for fixed peers (101/102/103/104)
 
-Cross-repository dependency analysis
-AST-based semantic parsing
-Incremental code modification
-Automatic refactoring
-Legacy code migration
+`ec2_autoconn` now supports a minimal discovery mode for fixed lab IPs.
 
-Supported Languages:
+Add these keys under `[AutoConn]`:
 
-Python
-Java
-Go
-TypeScript
-Rust
-3. RAG + Knowledge Memory
+- `EnableDiscovery=true|false`
+- `DiscoveryPort` (default `39001`)
+- `DiscoveryIntervalMs` (default `1000`)
+- `DiscoveryTimeoutMs` (default `5000`)
+- `DiscoveryPeers` format: `tid:ip[:tcp_port],tid:ip[:tcp_port]`
 
-The platform combines:
+Behavior:
 
-Vector Database
-Code Embedding Search
-Internal Wiki Retrieval
-Git History Context
-Long-Term Memory Graph
+- Discovery sends UDP `DISCOVER_HELLO` to fixed peers and listens for `DISCOVER_ACK`.
+- Ground role (`Role=2`) prefers discovered endpoint for `createClient()`.
+- If no fresh discovery ACK exists, connection falls back to configured `RemoteIP/RemotePort`.
 
-This allows agents to maintain architectural consistency across large codebases.
+Example:
 
-4. Tool Routing Engine
-
-Dynamic Tool Router automatically selects tools based on task complexity.
-
-Integrated tools include:
-
-GitLab API
-Jira API
-Kubernetes
-Docker
-SonarQube
-Sentry
-Prometheus
-Playwright
-Pytest
-Terraform
-5. Token Budget Optimizer
-
-A custom scheduling layer dynamically allocates:
-
-Context window size
-Model selection
-Retrieval depth
-Parallel agent count
-
-Results:
-
-Metric	Improvement
-Token Consumption	↓ 55%
-Code Acceptance Rate	↑ 63%
-Human Review Time	↓ 48%
-Delivery Speed	↑ 40%
-📂 Project Structure
-AegisFlow/
-├── agents/
-│   ├── planner/
-│   ├── architect/
-│   ├── coder/
-│   ├── reviewer/
-│   ├── tester/
-│   ├── security/
-│   └── devops/
-│
-├── core/
-│   ├── memory/
-│   ├── scheduler/
-│   ├── router/
-│   ├── rag/
-│   └── evaluation/
-│
-├── integrations/
-│   ├── gitlab/
-│   ├── jira/
-│   ├── kubernetes/
-│   └── monitoring/
-│
-├── api/
-├── frontend/
-├── worker/
-└── docs/
-🔧 Tech Stack
-Backend
-Python 3.11
-FastAPI
-Celery
-Redis
-PostgreSQL
-AI Infrastructure
-LangGraph
-LlamaIndex
-FAISS
-OpenAI API
-Claude API
-DeepSeek API
-DevOps
-Docker
-Kubernetes
-GitLab CI
-Terraform
-📈 Performance
-
-Production Metrics:
-
-Metric	Value
-Daily Agent Tasks	3000+
-Teams Supported	20+
-Total Token Usage	200M+
-Average Task Latency	8.4s
-Multi-Agent Parallelism	32 Workers
-🧪 Example Workflow
-Input
-Add RBAC authentication support for admin dashboard
-Autonomous Execution
-[Planner]
-├── Analyze authentication architecture
-├── Create RBAC permission model
-├── Generate middleware
-├── Add unit tests
-├── Run vulnerability scan
-└── Create merge request
-Output
-✔ 14 files modified
-✔ 86 unit tests generated
-✔ Security scan passed
-✔ Deployment completed
-✔ Merge Request auto-created
-🔐 Security
-
-Built-in security pipeline:
-
-Dependency vulnerability scanning
-Secret detection
-Static code analysis
-Prompt injection prevention
-Sandboxed tool execution
-Permission-scoped agents
-🌐 API Example
-from aegisflow import AgentClient
-
-client = AgentClient(api_key="YOUR_API_KEY")
-
-task = client.run(
-    instruction="Refactor legacy payment module",
-    repo="enterprise/payments"
-)
-
-print(task.status)
-🚀 Deployment
-Docker
-docker compose up -d
-Kubernetes
-kubectl apply -f k8s/
-🛣️ Roadmap
- Self-healing agent workflows
- Multi-modal code understanding
- Autonomous architecture evolution
- Reinforcement Learning optimization
- Distributed memory federation
-🤝 Contributing
-
-We welcome contributions from the community.
-
-git clone https://github.com/your-org/AegisFlow.git
-cd AegisFlow
-pip install -r requirements.txt
+```ini
+[AutoConn]
+Role=2
+LocalIP=127.0.0.1
+LocalPort=3021
+RemoteIP=127.0.0.1
+RemotePort=3020
+RemoteTID=101
+RetryIntervalMs=3000
+HeartbeatTimeoutMs=5000
+EnableDiscovery=true
+DiscoveryPort=39001
+DiscoveryIntervalMs=1000
+DiscoveryTimeoutMs=5000
+DiscoveryPeers=101:127.0.0.1:3020,103:127.0.0.1:3022,104:127.0.0.1:3023
+```

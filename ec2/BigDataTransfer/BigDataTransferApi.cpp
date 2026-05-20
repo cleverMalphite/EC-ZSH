@@ -90,7 +90,7 @@ namespace BigDataTransfer {
                     //ResetEvent(g_bigdata_transfer_event);
                     //WaitForSingleObject(g_bigdata_transfer_event, 2000);
                     //std::this_thread::sleep_for(std::chrono::microseconds(1));
-                    usleep(100*1000);
+                    usleep(10*1000);
                 }
             }
         }

@@ -4,6 +4,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <arpa/inet.h>
+#include <cmath>
 
 static bool gst_initialized_audio_receiver = false;
 static void ensure_gst_init_audio_receiver() {
@@ -36,6 +37,8 @@ bool AudioReceiverCore::start()
         stop();
     }
 
+    m_latencyCurrentMs = 100;
+
     const QByteArray sinkMode = qgetenv("EC2_AUDIO_SINK");
     m_useAppSink = (sinkMode == "appsink");
 
@@ -46,7 +49,7 @@ bool AudioReceiverCore::start()
     const std::string pipeline_str =
         "appsrc name=rtp_src is-live=true do-timestamp=true format=time block=false "
         "caps=\"application/x-rtp,media=audio,encoding-name=OPUS,payload=97,clock-rate=48000\" ! "
-        "rtpjitterbuffer latency=100 drop-on-latency=true do-lost=true mode=slave ! "
+        "rtpjitterbuffer name=audio_jitter latency=100 drop-on-latency=true do-lost=true mode=slave ! "
         "rtpopusdepay ! opusdec ! audioconvert ! audioresample ! " +
         sink;
 
@@ -63,6 +66,10 @@ bool AudioReceiverCore::start()
     if (!appsrc) {
         stop();
         return false;
+    }
+    jitterbuffer = gst_bin_get_by_name(GST_BIN(pipeline), "audio_jitter");
+    if (jitterbuffer) {
+        g_object_set(G_OBJECT(jitterbuffer), "latency", m_latencyCurrentMs, nullptr);
     }
     if (m_useAppSink) {
         appsink = gst_bin_get_by_name(GST_BIN(pipeline), "audio_sink");
@@ -81,6 +88,10 @@ bool AudioReceiverCore::start()
 
     m_decodedFrames.store(0);
     m_running.store(true);
+    m_hasArrival = false;
+    m_interArrivalAvgMs = 0.0;
+    m_jitterEmaMs = 0.0;
+    m_jitterAdjustClock.restart();
     return true;
 }
 
@@ -99,6 +110,10 @@ void AudioReceiverCore::stop()
     if (appsink) {
         gst_object_unref(appsink);
         appsink = nullptr;
+    }
+    if (jitterbuffer) {
+        gst_object_unref(jitterbuffer);
+        jitterbuffer = nullptr;
     }
 }
 
@@ -130,8 +145,68 @@ bool AudioReceiverCore::onAudioRtpData(DWORD,
     if (rtp_len < 12 || ((rtp[0] & 0xC0) != 0x80)) {
         return true;
     }
+
+    updateJitterStats();
+    maybeAdjustJitterLatency();
     pushRtpToAppSrc(rtp, rtp_len);
     return true;
+}
+
+void AudioReceiverCore::updateJitterStats()
+{
+    const auto now = std::chrono::steady_clock::now();
+    std::lock_guard<std::mutex> lock(m_jitterMutex);
+    if (!m_hasArrival) {
+        m_hasArrival = true;
+        m_lastArrival = now;
+        return;
+    }
+    const double delta_ms = std::chrono::duration<double, std::milli>(now - m_lastArrival).count();
+    m_lastArrival = now;
+
+    const double alpha = 0.10;
+    if (m_interArrivalAvgMs <= 0.0) {
+        m_interArrivalAvgMs = delta_ms;
+    } else {
+        m_interArrivalAvgMs += alpha * (delta_ms - m_interArrivalAvgMs);
+    }
+
+    const double dev = std::abs(delta_ms - m_interArrivalAvgMs);
+    const double beta = 0.20;
+    if (m_jitterEmaMs <= 0.0) {
+        m_jitterEmaMs = dev;
+    } else {
+        m_jitterEmaMs += beta * (dev - m_jitterEmaMs);
+    }
+}
+
+void AudioReceiverCore::maybeAdjustJitterLatency()
+{
+    if (!jitterbuffer) {
+        return;
+    }
+    if (!m_jitterAdjustClock.isValid()) {
+        m_jitterAdjustClock.start();
+    }
+    if (m_jitterAdjustClock.elapsed() < 1000) {
+        return;
+    }
+
+    double jitter_ms = 0.0;
+    {
+        std::lock_guard<std::mutex> lock(m_jitterMutex);
+        jitter_ms = m_jitterEmaMs;
+    }
+
+    int target_ms = static_cast<int>(std::lround(50.0 + jitter_ms * 3.0));
+    if (target_ms < 50) target_ms = 50;
+    if (target_ms > 300) target_ms = 300;
+
+    if (std::abs(target_ms - m_latencyCurrentMs) >= 10) {
+        g_object_set(G_OBJECT(jitterbuffer), "latency", target_ms, nullptr);
+        m_latencyCurrentMs = target_ms;
+    }
+    m_jitterAdjustClock.restart();
 }
 
 bool AudioReceiverCore::pushRtpToAppSrc(const BYTE *rtp, DWORD rtp_len)

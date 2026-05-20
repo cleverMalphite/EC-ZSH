@@ -169,6 +169,7 @@ namespace BigDataTransfer {
         const static DWORD SINGLE_BUFFER_SIZE = 1300;   //从文件中一次读取的字节数目
         const static DWORD SINGLE_READ_PACKET_NUMBER = 100; //一次读取文件中所需要读的包数目
         const static DWORD MAX_BUFFER_NUM = 100000;
+        const static DWORD SPEED_WINDOW_MS = 1000;      // 统一发送/接收速率统计窗口
 
     protected:
         pthread_mutex_t Mutex_;
@@ -182,7 +183,7 @@ namespace BigDataTransfer {
             pthread_mutex_unlock(&Mutex_);
         }
 
-        DWORD ComputeTransferSpeedKbps();    //计算文件传输实时带宽，并返回计算后的实时带宽
+        DWORD ComputeTransferSpeedKbps(bool force = false);    //计算文件传输实时带宽，并返回计算后的实时带宽
 
         DWORD GetFilePacketNumber(DWORD64 d_file_length);
 

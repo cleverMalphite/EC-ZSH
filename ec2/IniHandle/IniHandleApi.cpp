@@ -128,6 +128,14 @@ bool CreateDefaultIniIfMissing(const std::string &iniPath) {
             << "bIsClientConnectServer=false\n\n"
             << "[SpeedControl]\n"
             << "ExpectSpeed=300\n\n"
+            << "[VideoAdaptive]\n"
+            << "NormalMinKbps=1000\n"
+            << "LowMinKbps=500\n"
+            << "QueueLowPackets=40\n"
+            << "QueueHighPackets=120\n"
+            << "QueueCriticalPackets=240\n"
+            << "ProfileSwitchCooldownMs=1500\n"
+            << "PollIntervalMs=300\n\n"
             << "[BigDataTransfer]\n"
             << "recv_dir=../../FileRecv/\n"
             << "send_dir=../../FileSend/\n"
@@ -178,7 +186,12 @@ bool CreateDefaultIniIfMissing(const std::string &iniPath) {
             << "RemotePort=" << remotePort << "\n"
             << "RemoteTID=" << remoteTid << "\n"
             << "RetryIntervalMs=3000\n"
-            << "HeartbeatTimeoutMs=5000\n";
+            << "HeartbeatTimeoutMs=5000\n"
+            << "EnableDiscovery=false\n"
+            << "DiscoveryPort=39001\n"
+            << "DiscoveryIntervalMs=1000\n"
+            << "DiscoveryTimeoutMs=5000\n"
+            << "DiscoveryPeers=\n";
 
     return true;
 }

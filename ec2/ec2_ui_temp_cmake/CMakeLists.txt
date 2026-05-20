@@ -94,7 +94,7 @@ add_executable(ec2_ui_test
 )
 
 # ============================================================
-# ec2_autoconn — 无人机/地面端自动连接界面（新界面，不含视频）
+# ec2_autoconn — 无人机/地面端自动连接界面（含实时音视频传输）
 # ============================================================
 add_executable(ec2_autoconn
         main_autoconn.cpp
@@ -103,6 +103,15 @@ add_executable(ec2_autoconn
         AutoConnController.cpp
         AutoConnWindow.cpp
         AutoConnWindow.ui
+        RealtimeStreamDialog.cpp
+        SatelliteImageWidget.cpp
+        SendHistoryTab.cpp
+        ReceiveHistoryTab.cpp
+        VideoSender.cpp
+        VideoReceiver.cpp
+        AudioSenderCore.cpp
+        AudioReceiverCore.cpp
+        playerwidget.cpp
         ${PROJECT_DIR}/DataTransfer/fileblock/msg_cpp/FileBlockMsg.pb.cc
         ${PROJECT_DIR}/Util/DataUpdater.h
 )
@@ -112,6 +121,8 @@ target_link_libraries(ec2_autoconn
         Qt5::Gui
         Qt5::Widgets
         Threads::Threads
+        ${OpenCV_LIBS}
+        ${GST_LIBRARIES}
         ${Protobuf_LIBRARIES}
         IniHandler
         infoHub
@@ -135,6 +146,11 @@ target_link_directories(ec2_autoconn
 
 target_include_directories(ec2_autoconn PRIVATE
         ${GST_INCLUDE_DIRS}
+        ${PROJECT_DIR}/Util
+)
+
+target_compile_options(ec2_autoconn PRIVATE
+        ${GST_CFLAGS_OTHER}
 )
 
 # ============================================================

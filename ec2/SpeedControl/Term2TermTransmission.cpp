@@ -127,6 +127,13 @@ namespace SpeedControl {
         return bRealSendResult;
     }
 
+    DWORD Term2TermTransmission::GetPendingQueueDepth() {
+        pthread_mutex_lock(&Mutex_);
+        const DWORD pending = static_cast<DWORD>(data_send_buffer.size());
+        pthread_mutex_unlock(&Mutex_);
+        return pending;
+    }
+
     bool
     Term2TermTransmission::PushSendData(const std::shared_ptr<BYTE> &data, DWORD length, bool isSleep, bool isRBUDP) {
         pthread_mutex_lock(&Mutex_);
@@ -235,7 +242,7 @@ namespace SpeedControl {
             DWORD udp_packet_send_expect_frequency = m_d_big_cycle * 10;
             //printf("[SpeedControl Test]::udp_packet_send_expect_frequency :%d\n", udp_packet_send_expect_frequency);
 
-            if (udp_packet_send_expect_frequency > 1.2 * udp_packet_send_expect_frequency) {
+            if (udp_packet_send_real_frequency > 1.2 * udp_packet_send_expect_frequency) {
                 DWORD old_small_cycle = m_d_big_cycle;
                 m_d_small_cycle *= 0.8;
                 if (old_small_cycle <= 1 || m_d_big_cycle <= 1) {
