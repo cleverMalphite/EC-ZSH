@@ -25,7 +25,6 @@
 #include <utility>
 #include <mutex>
 #include <algorithm>
-#include <cmath>
 
 #include <QLabel>
 #include <QVBoxLayout>
@@ -105,19 +104,21 @@ VideoReceiver::VideoReceiver(QWidget *parent, bool forceReceive)
 
     //init param
     fps = 30;
-
+    
     //init timer for appsink polling
     timer_appsink = new QTimer(this);
     connect(timer_appsink, SIGNAL(timeout()), this, SLOT(on_timer_check_appsink()));
+    timer_feedback = new QTimer(this);
+    connect(timer_feedback, SIGNAL(timeout()), this, SLOT(on_timer_send_feedback()));
 
     //init widget
     // Let layout control size
     // this->resize(800, 600);
-
+    
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     this->playerWidget = new PlayerWidget(this);
     this->playerWidget->setLockLastImg(true);
-
+    
     QLabel *statusLabel = new QLabel("等待信号 (Waiting for Signal)...", this->playerWidget);
     statusLabel->setStyleSheet("QLabel { color: white; font-size: 20px; background-color: rgba(0,0,0,100); padding: 10px; border-radius: 5px; }");
     statusLabel->setAlignment(Qt::AlignCenter);
@@ -130,7 +131,7 @@ VideoReceiver::VideoReceiver(QWidget *parent, bool forceReceive)
     overlayLayout->addWidget(statusLabel, 0, Qt::AlignCenter);
     overlayLayout->addStretch();
     statusLabel->raise();
-
+    
     mainLayout->addWidget(playerWidget);
     setLayout(mainLayout);
 
@@ -142,13 +143,15 @@ VideoReceiver::VideoReceiver(QWidget *parent, bool forceReceive)
     m_rxRtpBytesWindow = 0;
     m_rxStatClock.start();
 
-    if (gUiRole == 2 || forceReceive) {
+    if (gUiRole == 2 || forceReceive) {   // 如果是接收端
         g_video_receiver_instance = this;
         m_audioReceiver = new AudioReceiverCore(this);
         m_audioReceiver->start();
-        Register_VideoRtp_RecvDataCallBack(VideoReceiver_SpeedControlRecvDataCallback);
+        Register_VideoRtp_RecvDataCallBack(VideoReceiver_SpeedControlRecvDataCallback);  // 注册视频RTP接收数据回调函数
         Register_AudioRtp_RecvDataCallBack(VideoReceiver_AudioRtpRecvDataCallback);
         startDeepIntegrationPipeline();
+        m_feedbackClock.start();
+        timer_feedback->start(200);
     }
 }
 
@@ -209,8 +212,6 @@ void VideoReceiver::startDeepIntegrationPipeline() {
         stopGstPipeline();
     }
 
-    m_latencyCurrentMs = 200;
-
     lastFrameAtMs = -1;
     if (this->playerWidget) {
         QLabel *statusLabel = this->playerWidget->findChild<QLabel *>("statusLabel");
@@ -218,11 +219,11 @@ void VideoReceiver::startDeepIntegrationPipeline() {
     }
 
     const std::string pipeline_str =
-        "appsrc name=rtp_src is-live=true format=time block=false "
+        "appsrc name=rtp_src is-live=true do-timestamp=true format=time block=false "
         "caps=\"application/x-rtp,media=video,encoding-name=H264,payload=96,clock-rate=90000\" ! "
-        "rtpjitterbuffer name=video_jitter latency=200 drop-on-latency=true do-lost=true mode=slave ! "
+        "rtpjitterbuffer latency=200 drop-on-latency=true do-lost=true mode=slave ! "
         "rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! video/x-raw,format=BGR ! "
-        "appsink name=mysink drop=true max-buffers=5 sync=false";
+        "appsink name=mysink drop=true max-buffers=1 sync=false";
 
     GError *error = nullptr;
     pipeline = gst_parse_launch(pipeline_str.c_str(), &error);
@@ -234,10 +235,6 @@ void VideoReceiver::startDeepIntegrationPipeline() {
 
     appsrc = gst_bin_get_by_name(GST_BIN(pipeline), "rtp_src");
     appsink = gst_bin_get_by_name(GST_BIN(pipeline), "mysink");
-    jitterbuffer = gst_bin_get_by_name(GST_BIN(pipeline), "video_jitter");
-    if (jitterbuffer) {
-        g_object_set(G_OBJECT(jitterbuffer), "latency", m_latencyCurrentMs, nullptr);
-    }
 
     if (!appsrc || !appsink) {
         std::cerr << "[VideoReceiver] Could not get rtp_src/mysink from pipeline" << std::endl;
@@ -262,11 +259,6 @@ void VideoReceiver::startDeepIntegrationPipeline() {
     timer_appsink->start(33);
     this->playerWidget->startPlay(fps);
     this->is_play = true;
-
-    m_hasArrival = false;
-    m_interArrivalAvgMs = 0.0;
-    m_jitterEmaMs = 0.0;
-    m_jitterAdjustClock.restart();
 }
 
 void VideoReceiver::startGstPipeline(int port) {
@@ -333,12 +325,12 @@ void VideoReceiver::stopGstPipeline() {
         gst_object_unref(appsink);
         appsink = nullptr;
     }
-    if (jitterbuffer) {
-        gst_object_unref(jitterbuffer);
-        jitterbuffer = nullptr;
-    }
     timer_appsink->stop();
+    if (timer_feedback) {
+        timer_feedback->stop();
+    }
     this->playerWidget->stopPlay();
+    this->playerWidget->clearDisplay();
     this->is_play = false;
     lastFrameAtMs = -1;
     if (this->playerWidget) {
@@ -464,10 +456,24 @@ bool VideoReceiver::onNetCombTransferBuffer(DWORD srcTID,
         const DWORD rtp_len = typed_len - offset;
         const BYTE *rtp = typed + offset;
         if (rtp_len >= 12) {
-            updateJitterStats();
-            maybeAdjustJitterLatency();
+            const uint16_t seq = (static_cast<uint16_t>(rtp[2]) << 8) | static_cast<uint16_t>(rtp[3]);
+            if (m_hasSeq) {
+                const uint16_t delta = static_cast<uint16_t>(seq - m_lastSeq);
+                if (delta > 0 && delta < 0x8000) {
+                    if (delta > 1) {
+                        m_lostPktsWindow += static_cast<uint32_t>(delta - 1);
+                    }
+                    m_lastSeq = seq;
+                }
+            } else {
+                m_hasSeq = true;
+                m_lastSeq = seq;
+            }
         }
 
+        m_lastRemoteTID = remoteTID;
+        m_recvPktsWindow += 1;
+        m_recvBytesWindow += rtp_len;
         m_rxRtpPktsWindow += 1;
         m_rxRtpBytesWindow += rtp_len;
 
@@ -491,9 +497,6 @@ bool VideoReceiver::onNetCombTransferBuffer(DWORD srcTID,
             return true;
         }
         gst_buffer_fill(gstbuf, 0, rtp, rtp_len);
-        if (videoCaptureTsUs > 0) {
-            GST_BUFFER_PTS(gstbuf) = videoCaptureTsUs * 1000;
-        }
         gst_app_src_push_buffer(GST_APP_SRC(appsrc), gstbuf);
 
         const qint64 elapsedMs = m_rxStatClock.elapsed();
@@ -581,9 +584,23 @@ bool VideoReceiver::onSpeedControlRecvData(DWORD srcTID,
         return true;
     }
 
-    updateJitterStats();
-    maybeAdjustJitterLatency();
+    const uint16_t seq = (static_cast<uint16_t>(rtp[2]) << 8) | static_cast<uint16_t>(rtp[3]);
+    if (m_hasSeq) {
+        const uint16_t delta = static_cast<uint16_t>(seq - m_lastSeq);
+        if (delta > 0 && delta < 0x8000) {
+            if (delta > 1) {
+                m_lostPktsWindow += static_cast<uint32_t>(delta - 1);
+            }
+            m_lastSeq = seq;
+        }
+    } else {
+        m_hasSeq = true;
+        m_lastSeq = seq;
+    }
 
+    m_lastRemoteTID = srcTID;
+    m_recvPktsWindow += 1;
+    m_recvBytesWindow += rtp_len;
     m_rxRtpPktsWindow += 1;
     m_rxRtpBytesWindow += rtp_len;
 
@@ -607,9 +624,6 @@ bool VideoReceiver::onSpeedControlRecvData(DWORD srcTID,
         return true;
     }
     gst_buffer_fill(gstbuf, 0, rtp, rtp_len);
-    if (videoCaptureTsUs > 0) {
-        GST_BUFFER_PTS(gstbuf) = videoCaptureTsUs * 1000;
-    }
     GstFlowReturn ret = gst_app_src_push_buffer(GST_APP_SRC(appsrc), gstbuf);
     if (ret != GST_FLOW_OK) {
         std::cerr << "[VideoReceiver] appsrc push failed: " << ret << std::endl;
@@ -634,59 +648,37 @@ bool VideoReceiver::onSpeedControlRecvData(DWORD srcTID,
     return true;
 }
 
-void VideoReceiver::updateJitterStats() {
-    const auto now = std::chrono::steady_clock::now();
-    std::lock_guard<std::mutex> lock(m_jitterMutex);
-    if (!m_hasArrival) {
-        m_hasArrival = true;
-        m_lastArrival = now;
+void VideoReceiver::on_timer_send_feedback() {
+    if (m_lastRemoteTID == 0) {
         return;
     }
-    const double delta_ms = std::chrono::duration<double, std::milli>(now - m_lastArrival).count();
-    m_lastArrival = now;
-
-    const double alpha = 0.10;
-    if (m_interArrivalAvgMs <= 0.0) {
-        m_interArrivalAvgMs = delta_ms;
-    } else {
-        m_interArrivalAvgMs += alpha * (delta_ms - m_interArrivalAvgMs);
-    }
-
-    const double dev = std::abs(delta_ms - m_interArrivalAvgMs);
-    const double beta = 0.20;
-    if (m_jitterEmaMs <= 0.0) {
-        m_jitterEmaMs = dev;
-    } else {
-        m_jitterEmaMs += beta * (dev - m_jitterEmaMs);
-    }
-}
-
-void VideoReceiver::maybeAdjustJitterLatency() {
-    if (!jitterbuffer) {
-        return;
-    }
-    if (!m_jitterAdjustClock.isValid()) {
-        m_jitterAdjustClock.start();
-    }
-    if (m_jitterAdjustClock.elapsed() < 1000) {
+    const qint64 elapsedMs = m_feedbackClock.elapsed();
+    if (elapsedMs <= 0) {
         return;
     }
 
-    double jitter_ms = 0.0;
-    {
-        std::lock_guard<std::mutex> lock(m_jitterMutex);
-        jitter_ms = m_jitterEmaMs;
-    }
+    const uint32_t recv_bps = static_cast<uint32_t>((m_recvBytesWindow * 8ULL * 1000ULL) / static_cast<uint64_t>(elapsedMs));
+    const uint32_t expected_pkts = m_recvPktsWindow + m_lostPktsWindow;
+    const uint32_t loss_x1000 = expected_pkts ? static_cast<uint32_t>((static_cast<uint64_t>(m_lostPktsWindow) * 1000ULL) / expected_pkts) : 0;
+    const uint32_t last_seq_u32 = static_cast<uint32_t>(m_lastSeq);
 
-    int target_ms = static_cast<int>(std::lround(50.0 + jitter_ms * 3.0));
-    if (target_ms < 50) target_ms = 50;
-    if (target_ms > 300) target_ms = 300;
+    const DWORD totalLen = 1 + 4 + 4 + 4;
+    std::shared_ptr<BYTE> sendBuf(new BYTE[totalLen], std::default_delete<BYTE[]>());
+    BYTE *p = sendBuf.get();
+    p[0] = 0x01;
+    uint32_t v = htonl(recv_bps);
+    memcpy(p + 1, &v, 4);
+    v = htonl(loss_x1000);
+    memcpy(p + 5, &v, 4);
+    v = htonl(last_seq_u32);
+    memcpy(p + 9, &v, 4);
 
-    if (std::abs(target_ms - m_latencyCurrentMs) >= 10) {
-        g_object_set(G_OBJECT(jitterbuffer), "latency", target_ms, nullptr);
-        m_latencyCurrentMs = target_ms;
-    }
-    m_jitterAdjustClock.restart();
+    SendTIDDataWithSpeedControl(m_lastRemoteTID, sendBuf, totalLen, true, false, false); // 改为false，与发送端匹配
+
+    m_recvBytesWindow = 0;
+    m_recvPktsWindow = 0;
+    m_lostPktsWindow = 0;
+    m_feedbackClock.restart();
 }
 
 // Legacy methods kept to satisfy interface but emptied or redirected

@@ -6,6 +6,7 @@
 #include "SendHistoryTab.h"
 #include "ReceiveHistoryTab.h"
 #include "RealtimeStreamDialog.h"
+#include "RateChartWidget.h"
 
 #include <QDateTime>
 #include <QDialog>
@@ -17,9 +18,11 @@
 #include <QMap>
 #include <QMessageBox>
 #include <QPlainTextEdit>
-#include <QRegularExpression>
+#include <QCheckBox>
+#include <QComboBox>
 #include <QSpinBox>
 #include <QVBoxLayout>
+#include <QButtonGroup>
 
 struct StateStyle {
     QString cardBg;
@@ -87,6 +90,17 @@ AutoConnWindow::AutoConnWindow(AutoConnController *ctrl, QWidget *parent)
     ui->localAddrLabel->setText(localAddr);
     ui->remoteAddrLabel->setText(remoteAddr);
 
+    // 初始化连接模式标签（从 ini 读取初始值）
+    int connModeRaw = GetIntegerKeyIni("AutoConn", "ConnMode", -1);
+    QString initModeText;
+    if (connModeRaw == 1 || GetBoolValueKeyIni("AutoConn", "IsDTU", false))
+        initModeText = QStringLiteral("DTU连接");
+    else if (connModeRaw == 2)
+        initModeText = QStringLiteral("多链路叠加");
+    else
+        initModeText = QStringLiteral("默认连接");
+    ui->dtuModeLabel->setText(initModeText);
+
     applyStateStyle(ConnState::DISCONNECTED);
     ui->reconnectBtn->setEnabled(m_ctrl != nullptr);
     if (m_ctrl) {
@@ -118,15 +132,31 @@ void AutoConnWindow::setupCustomWidgets()
     imageLayout->setContentsMargins(0, 0, 0, 0);
     imageLayout->addWidget(m_imageWidget);
 
-    bool ok = m_imageWidget->loadImage(QStringLiteral("../pic/OIP-C.webp"));
+    bool ok = m_imageWidget->loadImage(QStringLiteral("../pic/OIP.webp"));
     if (!ok) {
-        ok = m_imageWidget->loadImage(QStringLiteral("pic/OIP-C.webp"));
+        ok = m_imageWidget->loadImage(QStringLiteral("pic/OIP.webp"));
     }
     if (!ok) {
-        m_imageWidget->loadImage(QStringLiteral("/home/kong/workspace/EC-ZSH/ec2/pic/OIP-C.webp"));
+        ok = m_imageWidget->loadImage(QStringLiteral("../../pic/OIP.webp"));
+    }
+    if (!ok) {
+        // 兜底：用可执行文件所在目录定位
+        const QString appDir = QCoreApplication::applicationDirPath();
+        ok = m_imageWidget->loadImage(QDir(appDir).absoluteFilePath("../pic/OIP.webp"));
     }
 
-    // ---- 2) 底部 Tab ----
+    // ---- 2) 速率图 Tab（第一个 Tab）----
+    m_rateChart = new RateChartWidget(this);
+    ui->infoTabWidget->addTab(m_rateChart, QStringLiteral("速率图"));
+
+    // 将 Controller 的速率信号接入图表
+    if (m_ctrl) {
+        connect(m_ctrl, &AutoConnController::transferRateUpdated,
+                m_rateChart, &RateChartWidget::addSample,
+                Qt::QueuedConnection);
+    }
+
+    // ---- 3) 运行日志 Tab ----
     m_logEdit = new QPlainTextEdit(this);
     m_logEdit->setReadOnly(true);
     m_logEdit->setMaximumBlockCount(300);
@@ -150,6 +180,14 @@ void AutoConnWindow::setupCustomWidgets()
     ui->infoTabWidget->addTab(m_recvHistoryTab, QStringLiteral("接收历史"));
 
     ui->infoTabWidget->setCurrentIndex(0);
+
+    // ---- 5) 网络类型按钮互斥 ----
+    auto *netBtnGroup = new QButtonGroup(this);
+    netBtnGroup->addButton(ui->meshBtn);
+    netBtnGroup->addButton(ui->wifiBtn);
+    netBtnGroup->addButton(ui->fiveGBtn);
+    netBtnGroup->addButton(ui->satelliteBtn);
+    netBtnGroup->setExclusive(true);
 }
 
 void AutoConnWindow::onStateChanged(ConnState s)
@@ -169,9 +207,17 @@ void AutoConnWindow::onStateChanged(ConnState s)
     updateSendButtonEnabled();
 }
 
+QString AutoConnWindow::formatDuration(qint64 elapsedMs)
+{
+    if (elapsedMs < 1000) {
+        return QString("%1 ms").arg(elapsedMs);
+    }
+    return QString("%1 s").arg(elapsedMs / 1000.0, 0, 'f', 2);
+}
+
 void AutoConnWindow::syncHistoryFromLogLine(const QString &msg)
 {
-    const QString now = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
 
     // 发送失败日志: [Transfer] 任务#1000000 file.txt 发送失败
     {
@@ -180,8 +226,10 @@ void AutoConnWindow::syncHistoryFromLogLine(const QString &msg)
         if (m.hasMatch()) {
             const unsigned int taskId = m.captured(1).toUInt();
             const QString fileName = m.captured(2).trimmed();
-            m_sendHistoryTab->upsertSendProgress(taskId, 0, fileName,
-                                                 QStringLiteral("发送失败"), 0.0f, now);
+            const qint64 startMs = m_sendStartMs.take(taskId);
+            const QString duration = (startMs > 0) ? formatDuration(nowMs - startMs) : QString();
+            m_sendHistoryTab->upsertSendProgress(taskId, 0, fileName, 0,
+                                                 QStringLiteral("发送失败"), 0.0f, duration);
             return;
         }
     }
@@ -194,8 +242,10 @@ void AutoConnWindow::syncHistoryFromLogLine(const QString &msg)
             const unsigned int taskId = m.captured(1).toUInt();
             const QString fileName = m.captured(2).trimmed();
             const float rate = m.captured(3).toFloat();
-            m_sendHistoryTab->upsertSendProgress(taskId, 0, fileName,
-                                                 QStringLiteral("发送成功"), rate, now);
+            const qint64 startMs = m_sendStartMs.take(taskId);
+            const QString duration = (startMs > 0) ? formatDuration(nowMs - startMs) : QString();
+            m_sendHistoryTab->upsertSendProgress(taskId, 0, fileName, 0,
+                                                 QStringLiteral("发送成功"), rate, duration);
             return;
         }
     }
@@ -209,8 +259,16 @@ void AutoConnWindow::syncHistoryFromLogLine(const QString &msg)
             const QString fileName = m.captured(2).trimmed();
             const unsigned int pct = m.captured(3).toUInt();
             const float rate = m.captured(4).toFloat();
+            if (!m_recvStartMs.contains(taskId)) {
+                m_recvStartMs.insert(taskId, nowMs);
+            }
             const QString status = (pct >= 100) ? QStringLiteral("接收完成") : QStringLiteral("接收中");
-            m_recvHistoryTab->upsertRecvProgress(taskId, 0, fileName, status, rate, now);
+            QString duration;
+            if (pct >= 100) {
+                const qint64 startMs = m_recvStartMs.take(taskId);
+                duration = (startMs > 0) ? formatDuration(nowMs - startMs) : QString();
+            }
+            m_recvHistoryTab->upsertRecvProgress(taskId, 0, fileName, 0, status, rate, duration);
             return;
         }
     }
@@ -226,7 +284,9 @@ void AutoConnWindow::syncHistoryFromLogLine(const QString &msg)
             const QString status = (flag == QStringLiteral("Success"))
                 ? QStringLiteral("接收成功")
                 : QStringLiteral("接收失败");
-            m_recvHistoryTab->upsertRecvProgress(taskId, 0, fileName, status, -1.0f, now);
+            const qint64 startMs = m_recvStartMs.take(taskId);
+            const QString duration = (startMs > 0) ? formatDuration(nowMs - startMs) : QString();
+            m_recvHistoryTab->upsertRecvProgress(taskId, 0, fileName, 0, status, -1.0f, duration);
             return;
         }
     }
@@ -300,6 +360,7 @@ void AutoConnWindow::onReconnectBtnClicked()
     auto *layout = new QVBoxLayout(&dlg);
     auto *form = new QFormLayout();
 
+    // ---- 自组网链路参数 ----
     auto *localIpEdit = new QLineEdit(m_ctrl->localAddr(), &dlg);
     auto *localPortSpin = new QSpinBox(&dlg);
     localPortSpin->setRange(0, 65535);
@@ -310,10 +371,60 @@ void AutoConnWindow::onReconnectBtnClicked()
     remotePortSpin->setRange(1, 65535);
     remotePortSpin->setValue(m_ctrl->remotePort());
 
+    // ---- 连接模式选择（三选一）----
+    auto *modeCombo = new QComboBox(&dlg);
+    modeCombo->addItem(QStringLiteral("仅自组网"),  (int)ConnMode::MeshOnly);
+    modeCombo->addItem(QStringLiteral("仅DTU"),     (int)ConnMode::DTUOnly);
+    modeCombo->addItem(QStringLiteral("多链路叠加"), (int)ConnMode::DualPath);
+    modeCombo->setCurrentIndex(static_cast<int>(m_ctrl->connMode()));
+
+    // ---- DTU 链路参数（仅在 DTUOnly / DualPath 时显示）----
+    auto *dtuLocalIpEdit    = new QLineEdit(m_ctrl->dtuLocalAddr(), &dlg);
+    auto *dtuLocalPortSpin  = new QSpinBox(&dlg);
+    dtuLocalPortSpin->setRange(0, 65535);
+    dtuLocalPortSpin->setValue(m_ctrl->dtuLocalPort());
+
+    auto *dtuRemoteIpEdit   = new QLineEdit(m_ctrl->dtuRemoteAddr(), &dlg);
+    auto *dtuRemotePortSpin = new QSpinBox(&dlg);
+    dtuRemotePortSpin->setRange(1, 65535);
+    dtuRemotePortSpin->setValue(m_ctrl->dtuRemotePort());
+
+    // DTU 行标签和控件引用，用于显示/隐藏
+    QLabel *dtuLocalLabel  = new QLabel(QStringLiteral("DTU本地 IP："), &dlg);
+    QLabel *dtuLocalPLabel = new QLabel(QStringLiteral("DTU本地端口："), &dlg);
+    QLabel *dtuRemoteLabel  = new QLabel(QStringLiteral("DTU对端 IP："), &dlg);
+    QLabel *dtuRemotePLabel = new QLabel(QStringLiteral("DTU对端端口："), &dlg);
+
+    auto toggleDtuFields = [=](bool visible) {
+        dtuLocalLabel->setVisible(visible);
+        dtuLocalIpEdit->setVisible(visible);
+        dtuLocalPLabel->setVisible(visible);
+        dtuLocalPortSpin->setVisible(visible);
+        dtuRemoteLabel->setVisible(visible);
+        dtuRemoteIpEdit->setVisible(visible);
+        dtuRemotePLabel->setVisible(visible);
+        dtuRemotePortSpin->setVisible(visible);
+    };
+
+    // 初始状态
+    const bool showDtu = (modeCombo->currentIndex() != 0);  // 非 MeshOnly 时显示
+    toggleDtuFields(showDtu);
+
+    QObject::connect(modeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                     &dlg, [=](int idx) { toggleDtuFields(idx != 0); });
+
+    form->addRow(QStringLiteral("连接模式："), modeCombo);
     form->addRow(QStringLiteral("本地 IP："), localIpEdit);
     form->addRow(QStringLiteral("本地端口："), localPortSpin);
     form->addRow(QStringLiteral("对端 IP："), remoteIpEdit);
     form->addRow(QStringLiteral("对端端口："), remotePortSpin);
+
+    // DTU 参数行
+    form->addRow(dtuLocalLabel, dtuLocalIpEdit);
+    form->addRow(dtuLocalPLabel, dtuLocalPortSpin);
+    form->addRow(dtuRemoteLabel, dtuRemoteIpEdit);
+    form->addRow(dtuRemotePLabel, dtuRemotePortSpin);
+
     layout->addLayout(form);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
@@ -333,13 +444,39 @@ void AutoConnWindow::onReconnectBtnClicked()
         return;
     }
 
+    // DTU 模式下验证 DTU 参数
+    const ConnMode mode = static_cast<ConnMode>(modeCombo->currentData().toInt());
+    const QString dtuLocalIp  = dtuLocalIpEdit->text().trimmed();
+    const QString dtuRemoteIp = dtuRemoteIpEdit->text().trimmed();
+    if (mode == ConnMode::DTUOnly || mode == ConnMode::DualPath) {
+        if (dtuLocalIp.isEmpty() || dtuRemoteIp.isEmpty()) {
+            QMessageBox::warning(this, QStringLiteral("参数错误"),
+                                 QStringLiteral("DTU模式下，DTU本地IP和对端IP不能为空。"));
+            return;
+        }
+    }
+
     m_ctrl->applyManualConnection(localIp,
                                   localPortSpin->value(),
                                   remoteIp,
-                                  remotePortSpin->value());
+                                  remotePortSpin->value(),
+                                  mode,
+                                  dtuLocalIp,
+                                  dtuLocalPortSpin->value(),
+                                  dtuRemoteIp,
+                                  dtuRemotePortSpin->value());
 
     ui->localAddrLabel->setText(QString("%1:%2").arg(localIp).arg(localPortSpin->value()));
     ui->remoteAddrLabel->setText(QString("%1:%2").arg(remoteIp).arg(remotePortSpin->value()));
+
+    // 更新模式标签
+    QString modeLabel;
+    switch (mode) {
+        case ConnMode::MeshOnly: modeLabel = QStringLiteral("默认连接"); break;
+        case ConnMode::DTUOnly:  modeLabel = QStringLiteral("DTU连接"); break;
+        case ConnMode::DualPath: modeLabel = QStringLiteral("多链路叠加"); break;
+    }
+    ui->dtuModeLabel->setText(modeLabel);
 }
 
 void AutoConnWindow::onRealtimeBtnClicked()
@@ -413,19 +550,23 @@ unsigned int AutoConnWindow::selectedTargetTid() const
 
 void AutoConnWindow::onBrowseBtnClicked()
 {
-    const QString path = QFileDialog::getOpenFileName(this, "选择要发送的文件", QDir::homePath());
-    if (path.isEmpty()) {
+    const QStringList paths = QFileDialog::getOpenFileNames(this, "选择要发送的文件", QDir::homePath());
+    if (paths.isEmpty()) {
         return;
     }
 
-    m_selectedFilePath = path;
-    ui->filePathEdit->setText(path);
+    m_selectedFilePaths = paths;
+    if (paths.size() == 1) {
+        ui->filePathEdit->setText(paths.first());
+    } else {
+        ui->filePathEdit->setText(QString("已选择 %1 个文件").arg(paths.size()));
+    }
     updateSendButtonEnabled();
 }
 
 void AutoConnWindow::onSendFileBtnClicked()
 {
-    if (m_selectedFilePath.isEmpty()) {
+    if (m_selectedFilePaths.isEmpty()) {
         return;
     }
 
@@ -435,17 +576,30 @@ void AutoConnWindow::onSendFileBtnClicked()
         return;
     }
 
-    QFileInfo fi(m_selectedFilePath);
-    const std::string filePath = m_selectedFilePath.toStdString();
-    const std::string fileName = fi.fileName().toStdString();
+    int successCount = 0;
+    int failCount = 0;
+    for (const QString &filePath : m_selectedFilePaths) {
+        QFileInfo fi(filePath);
+        const std::string stdFilePath = filePath.toStdString();
+        const std::string stdFileName = fi.fileName().toStdString();
 
-    const bool ok = m_ctrl->sendFileToTid(targetTid, filePath, fileName);
-    if (ok) {
-        onLogMessage(QString("[Transfer] 已创建发送任务：%1 -> TID %2")
-                     .arg(fi.fileName())
-                     .arg(targetTid));
-    } else {
-        QMessageBox::warning(this, "发送失败", "创建文件传输任务失败，请确认连接正常。\n若是多终端场景，请检查目标终端是否在线。");
+        const bool ok = m_ctrl->sendFileToTid(targetTid, stdFilePath, stdFileName);
+        if (ok) {
+            onLogMessage(QString("[Transfer] 已创建发送任务：%1 -> TID %2")
+                         .arg(fi.fileName())
+                         .arg(targetTid));
+            ++successCount;
+        } else {
+            onLogMessage(QString("[Transfer] 发送任务创建失败：%1").arg(fi.fileName()));
+            ++failCount;
+        }
+    }
+
+    if (failCount > 0 && successCount > 0) {
+        QMessageBox::warning(this, "部分发送失败",
+                             QString("成功创建 %1 个任务，%2 个失败。").arg(successCount).arg(failCount));
+    } else if (failCount > 0) {
+        QMessageBox::warning(this, "发送失败", "创建文件传输任务失败，请确认连接正常。");
     }
 }
 
@@ -480,34 +634,41 @@ void AutoConnWindow::onTransferRateUpdated(float sendKbps, float recvKbps)
 void AutoConnWindow::onSendProgressUpdated(unsigned int taskId,
                                            unsigned int receiverTid,
                                            const QString &filename,
+                                           quint64 fileSize,
                                            float rateKbps,
                                            unsigned int percent)
 {
-    const QString msg = QString("[Transfer] 任务#%1 %2  %3%  %4 kbps")
-                            .arg(taskId)
-                            .arg(filename)
-                            .arg(percent)
-                            .arg(rateKbps, 0, 'f', 1);
-    onLogMessage(msg);
-
     if (rateKbps > 0.0f) {
         m_lastSendRateKbps = rateKbps;
         m_lastSendRateMs = QDateTime::currentMSecsSinceEpoch();
     }
 
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+
+    // 首次出现该任务时记录开始时间
+    if (!m_sendStartMs.contains(taskId)) {
+        m_sendStartMs.insert(taskId, nowMs);
+    }
+
     const QString status = (percent >= 100) ? QStringLiteral("发送成功") : QStringLiteral("发送中");
-    const QString now = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
+    QString duration;
+    if (percent >= 100) {
+        const qint64 startMs = m_sendStartMs.take(taskId);
+        duration = (startMs > 0) ? formatDuration(nowMs - startMs) : QString();
+    }
     m_sendHistoryTab->upsertSendProgress(taskId,
                                          receiverTid,
                                          filename,
+                                         fileSize,
                                          status,
                                          rateKbps,
-                                         now);
+                                         duration);
 }
 
 void AutoConnWindow::onRecvProgressUpdated(unsigned int taskId,
                                            unsigned int senderTid,
                                            const QString &filename,
+                                           quint64 fileSize,
                                            float rateKbps,
                                            unsigned int percent)
 {
@@ -523,20 +684,32 @@ void AutoConnWindow::onRecvProgressUpdated(unsigned int taskId,
     };
     ui->recvRateLabel->setText(fmtRate((rateKbps > 0.0f) ? rateKbps : m_lastRecvRateKbps));
 
+    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+
+    // 首次出现该任务时记录开始时间
+    if (!m_recvStartMs.contains(taskId)) {
+        m_recvStartMs.insert(taskId, nowMs);
+    }
+
     const QString status = (percent >= 100) ? QStringLiteral("接收完成") : QStringLiteral("接收中");
-    const QString now = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
+    QString duration;
+    if (percent >= 100) {
+        const qint64 startMs = m_recvStartMs.take(taskId);
+        duration = (startMs > 0) ? formatDuration(nowMs - startMs) : QString();
+    }
     m_recvHistoryTab->upsertRecvProgress(taskId,
                                          senderTid,
                                          filename,
+                                         fileSize,
                                          status,
                                          rateKbps,
-                                         now);
+                                         duration);
 }
 
 void AutoConnWindow::updateSendButtonEnabled()
 {
     const bool connected = (m_ctrl && m_ctrl->currentState() == ConnState::CONNECTED);
-    const bool hasFile = !m_selectedFilePath.isEmpty();
+    const bool hasFile = !m_selectedFilePaths.isEmpty();
     const bool hasTarget = (selectedTargetTid() != 0);
     ui->sendFileBtn->setEnabled(connected && hasFile && hasTarget);
 }

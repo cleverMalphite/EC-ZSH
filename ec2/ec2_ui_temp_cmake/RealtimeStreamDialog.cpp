@@ -1,6 +1,7 @@
 #include "RealtimeStreamDialog.h"
 #include "VideoSender.h"
 #include "VideoReceiver.h"
+#include "playerwidget.h"
 #include "AutoConnController.h"
 #include "function.h"
 
@@ -113,6 +114,15 @@ RealtimeStreamDialog::~RealtimeStreamDialog()
             rxLayout->removeWidget(g_videoReceiver->playerWidget);
         }
         g_videoReceiver->playerWidget->setParent(g_videoReceiver);
+    }
+}
+
+void RealtimeStreamDialog::showEvent(QShowEvent *event)
+{
+    QDialog::showEvent(event);
+    // Clear stale frame from receiver when dialog is shown
+    if (g_videoReceiver && g_videoReceiver->playerWidget) {
+        g_videoReceiver->playerWidget->clearDisplay();
     }
 }
 

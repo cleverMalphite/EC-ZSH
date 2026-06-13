@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
 project(EmergencyCommunication)
 
+# target_link_directories 是 CMake 3.13 才引入的，旧版用空宏兼容
+if(${CMAKE_VERSION} VERSION_LESS "3.13")
+    macro(target_link_directories target)
+    endmacro()
+endif()
+
 # 应急系统
 
 SET(CMAKE_CXX_FLAGS -pthread)
@@ -48,6 +54,15 @@ include_directories(${PROTOBUF_INCLUDE_DIRS})
 include_directories(${RPCLIB_INCLUDE_DIR})
 include_directories(${LIBHV_INCLUDE_DIR})
 
+# libhv（本地源码，未安装到系统）
+set(LIBHV_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/thirdparty/libhv/include)
+set(LIBHV_LIB         ${PROJECT_SOURCE_DIR}/thirdparty/libhv/build/lib/libhv_static.a)
+add_library(hv STATIC IMPORTED GLOBAL)
+set_target_properties(hv PROPERTIES
+    IMPORTED_LOCATION          ${LIBHV_LIB}
+    INTERFACE_INCLUDE_DIRECTORIES ${LIBHV_INCLUDE_DIR}
+)
+
 include_directories(SYSTEM "/foo/bar")
 
 #指定头文件搜索路径
@@ -67,6 +82,7 @@ include_directories(${PROJECT_SOURCE_DIR}/BigDataTransfer)
 include_directories(${PROJECT_SOURCE_DIR}/Term2TermQos)
 include_directories(${PROJECT_SOURCE_DIR}/DataTransfer)
 include_directories(${PROJECT_SOURCE_DIR}/BulkDataTransfer)
+include_directories(${PROJECT_SOURCE_DIR}/../rpclib/include)
 
 include_directories(${GST_INCLUDE_DIRS})
 link_directories(${GST_LIBRARY_DIRS})
@@ -84,6 +100,7 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/BigDataTransfer)
 add_subdirectory(${PROJECT_SOURCE_DIR}/Term2TermQos)
 add_subdirectory(${PROJECT_SOURCE_DIR}/DataTransfer)
 add_subdirectory(${PROJECT_SOURCE_DIR}/BulkDataTransfer)
+add_subdirectory(${PROJECT_SOURCE_DIR}/../rpclib ${PROJECT_BINARY_DIR}/rpclib)
 
 set(LIBRARIES
   pthread
@@ -167,6 +184,63 @@ add_executable(ec2_autoconn
         ec2_ui_temp_cmake/SatelliteImageWidget.cpp
         ec2_ui_temp_cmake/SendHistoryTab.cpp
         ec2_ui_temp_cmake/ReceiveHistoryTab.cpp
+        ec2_ui_temp_cmake/VideoSender.cpp
+        ec2_ui_temp_cmake/VideoReceiver.cpp
+        ec2_ui_temp_cmake/AudioSenderCore.cpp
+        ec2_ui_temp_cmake/AudioReceiverCore.cpp
+        ec2_ui_temp_cmake/playerwidget.cpp
+        DataTransfer/fileblock/msg_cpp/FileBlockMsg.pb.cc
+        Util/DataUpdater.h
+)
+target_link_libraries(ec2_autoconn
+        Qt5::Core
+        Qt5::Gui
+        Qt5::Widgets
+        Threads::Threads
+        ${Protobuf_LIBRARIES}
+        ${OpenCV_LIBS}
+        ${GST_LIBRARIES}
+        IniHandler
+        infoHub
+        NetEpollComm
+        NetCombTransferAPI
+        SpeedControl
+        MRUDP
+        RBUDP
+        BigDataTransfer
+        QOS
+        rpc
+        hv
+        ${CMAKE_THREAD_LIBS_INIT}
+)
+target_link_directories(ec2_autoconn
+        PRIVATE
+        /usr/local/lib/
+        ${LIB_DIRS}
+)
+target_include_directories(ec2_autoconn
+        PRIVATE
+        /usr/local/include/
+        ${INC_DIRS}
+        ${GST_INCLUDE_DIRS}
+)
+
+# ============================================================
+# ec2_autoconn — 无人机/地面端自动连接界面（含实时音视频传输）
+# ============================================================
+add_executable(ec2_autoconn
+        ec2_ui_temp_cmake/main_autoconn.cpp
+        public/_public.cpp
+        ec2_ui_temp_cmake/function.cpp
+        ec2_ui_temp_cmake/AutoConnController.cpp
+        ec2_ui_temp_cmake/FileWatchDog.cpp
+        ec2_ui_temp_cmake/AutoConnWindow.cpp
+        ec2_ui_temp_cmake/AutoConnWindow.ui
+        ec2_ui_temp_cmake/RealtimeStreamDialog.cpp
+        ec2_ui_temp_cmake/SatelliteImageWidget.cpp
+        ec2_ui_temp_cmake/SendHistoryTab.cpp
+        ec2_ui_temp_cmake/ReceiveHistoryTab.cpp
+        ec2_ui_temp_cmake/RateChartWidget.cpp
         ec2_ui_temp_cmake/VideoSender.cpp
         ec2_ui_temp_cmake/VideoReceiver.cpp
         ec2_ui_temp_cmake/AudioSenderCore.cpp

@@ -90,10 +90,10 @@
          </property>
          <layout class="QVBoxLayout" name="imageCardLayout">
           <property name="spacing"><number>0</number></property>
-          <property name="leftMargin"><number>4</number></property>
-          <property name="rightMargin"><number>4</number></property>
-          <property name="topMargin"><number>4</number></property>
-          <property name="bottomMargin"><number>4</number></property>
+          <property name="leftMargin"><number>0</number></property>
+          <property name="rightMargin"><number>0</number></property>
+          <property name="topMargin"><number>0</number></property>
+          <property name="bottomMargin"><number>0</number></property>
           <item>
            <widget class="QWidget" name="imageContainer">
             <property name="minimumHeight"><number>160</number></property>
@@ -176,8 +176,143 @@
            </widget>
           </item>
 
+          <item row="2" column="0">
+           <widget class="QLabel">
+            <property name="text"><string>连接方式</string></property>
+            <property name="styleSheet"><string>color: #888888; font-size: 13px;</string></property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QLabel" name="dtuModeLabel">
+            <property name="text"><string>默认连接</string></property>
+            <property name="styleSheet"><string>color: #333333; font-size: 13px; font-weight: bold;</string></property>
+           </widget>
+          </item>
+
          </layout>
         </widget>
+       </item>
+
+       <!-- ===== 网络类型选择 ===== -->
+       <item>
+        <layout class="QHBoxLayout">
+         <property name="spacing"><number>8</number></property>
+         <item>
+          <widget class="QLabel">
+           <property name="text"><string>网络类型：</string></property>
+           <property name="styleSheet"><string>color: #888888; font-size: 13px;</string></property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="meshBtn">
+           <property name="text"><string>无线自组网</string></property>
+           <property name="checkable"><bool>true</bool></property>
+           <property name="checked"><bool>true</bool></property>
+           <property name="minimumSize">
+            <size><width>100</width><height>32</height></size>
+           </property>
+           <property name="styleSheet">
+            <string>
+             QPushButton {
+                 background-color: #e8eef6;
+                 color: #333333;
+                 border: 1px solid #c8d4e8;
+                 border-radius: 6px;
+                 font-size: 13px;
+             }
+             QPushButton:checked {
+                 background-color: #3a6ea5;
+                 color: white;
+                 border: 1px solid #2a5e95;
+             }
+             QPushButton:hover { background-color: #d0dcee; }
+            </string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="wifiBtn">
+           <property name="text"><string>WiFi</string></property>
+           <property name="checkable"><bool>true</bool></property>
+           <property name="checked"><bool>false</bool></property>
+           <property name="minimumSize">
+            <size><width>100</width><height>32</height></size>
+           </property>
+           <property name="styleSheet">
+            <string>
+             QPushButton {
+                 background-color: #e8eef6;
+                 color: #333333;
+                 border: 1px solid #c8d4e8;
+                 border-radius: 6px;
+                 font-size: 13px;
+             }
+             QPushButton:checked {
+                 background-color: #3a6ea5;
+                 color: white;
+                 border: 1px solid #2a5e95;
+             }
+             QPushButton:hover { background-color: #d0dcee; }
+            </string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="fiveGBtn">
+           <property name="text"><string>5G</string></property>
+           <property name="checkable"><bool>true</bool></property>
+           <property name="minimumSize">
+            <size><width>100</width><height>32</height></size>
+           </property>
+           <property name="styleSheet">
+            <string>
+             QPushButton {
+                 background-color: #e8eef6;
+                 color: #333333;
+                 border: 1px solid #c8d4e8;
+                 border-radius: 6px;
+                 font-size: 13px;
+             }
+             QPushButton:checked {
+                 background-color: #3a6ea5;
+                 color: white;
+                 border: 1px solid #2a5e95;
+             }
+             QPushButton:hover { background-color: #d0dcee; }
+            </string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="satelliteBtn">
+           <property name="text"><string>卫星互联网</string></property>
+           <property name="checkable"><bool>true</bool></property>
+           <property name="minimumSize">
+            <size><width>100</width><height>32</height></size>
+           </property>
+           <property name="styleSheet">
+            <string>
+             QPushButton {
+                 background-color: #e8eef6;
+                 color: #333333;
+                 border: 1px solid #c8d4e8;
+                 border-radius: 6px;
+                 font-size: 13px;
+             }
+             QPushButton:checked {
+                 background-color: #3a6ea5;
+                 color: white;
+                 border: 1px solid #2a5e95;
+             }
+             QPushButton:hover { background-color: #d0dcee; }
+            </string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer><property name="orientation"><enum>Qt::Horizontal</enum></property></spacer>
+         </item>
+        </layout>
        </item>
 
        <!-- ===== 操作区：手动重连按钮 ===== -->

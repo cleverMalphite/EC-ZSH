@@ -199,9 +199,8 @@ namespace BigDataTransfer {
                     break;
                 } else {
                     //将文件发送任务反馈给相关的需要获取文件发送任务进度信息的模块，可能不止一个
-                    static DWORD d_last_progress = 0;    //表示上一次文件发送任务进度
                     DWORD d_current_progress = 100.0 * ((m_file_length_has_transfer * 1.0) / (m_file_length * 1.0));
-                    if (1 <= (d_current_progress - d_last_progress)) {
+                    if (1 <= (d_current_progress - m_last_progress)) {
 
                         //houlc debug
                         printf("-----------------------\n");
@@ -223,7 +222,7 @@ namespace BigDataTransfer {
 
 //                        printf("FileSendTask:sendData.1\n");
                         CallAll_RegisterFileSendTaskProgressCallBack(info);
-                        d_last_progress = d_current_progress;
+                        m_last_progress = d_current_progress;
                     }
                 }
                 //******************************************************************************************

@@ -59,6 +59,7 @@ void releaseArrays(T *p) {
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
+#include <netinet/tcp.h>
 #include <mutex>
 #include <memory>
 
@@ -86,8 +87,8 @@ public:
     ~CIP_SOCKET();
 
 public://部分设置成private比较好，有时间优化一下。
-    sockaddr_in mRemoteAddr{}, mLocalAddr{}, mAcceptAddr{};
-    socklen_t mRemoteAddrLen{}, mLocalAddrLen{}, mAcceptAddrLen{};
+    sockaddr_in mRemoteAddr{}, mLocalAddr{}, mAcceptAddr{};   //远程地址、本地地址、接收地址
+    socklen_t mRemoteAddrLen{}, mLocalAddrLen{}, mAcceptAddrLen{};  //远程地址长度、本地地址长度、接收地址长度
     DWORD mRemotePort{}, mLocalPort{}, mAcceptPort{};
     std::string mRemoteAddress, mLocalAddress, mAcceptAddress;
     int mLocalSock = 0;
@@ -198,7 +199,7 @@ public:
     }
 } EventDataEx;*/
 
-typedef struct ip_Data_Buffer {
+typedef struct ip_Data_Buffer {  // 用于网络传输的缓冲区
     UINT uSocket;
     std::shared_ptr<BYTE> pBuffer;
     unsigned long dwLength = 0;

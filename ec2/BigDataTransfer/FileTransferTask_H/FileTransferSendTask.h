@@ -70,6 +70,8 @@ namespace BigDataTransfer {
 
         bool m_b_is_file_read_all;    //判断文件是否已经被读取完毕
 
+        DWORD m_last_progress = 0;    // 上次回调上报的进度，替换 static 实现每个任务独立计数
+
         std::ifstream m_p_file;        //与此任务关联的文件指针
 
         pthread_mutex_t _transferStateMutex; //文件状态需要同步,现在采用锁做同步

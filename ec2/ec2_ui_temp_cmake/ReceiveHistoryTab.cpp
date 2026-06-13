@@ -18,14 +18,15 @@ void ReceiveHistoryTab::setupUI()
     layout->setSpacing(0);
 
     m_table = new QTableWidget(this);
-    m_table->setColumnCount(6);
+    m_table->setColumnCount(7);
     m_table->setHorizontalHeaderLabels({
         QStringLiteral("任务号"),
         QStringLiteral("发送端号 (TID)"),
         QStringLiteral("文件名"),
+        QStringLiteral("文件大小"),
         QStringLiteral("接收状态"),
         QStringLiteral("平均接收速率"),
-        QStringLiteral("接收时间")
+        QStringLiteral("完成时间")
     });
 
     m_table->setStyleSheet(
@@ -66,9 +67,11 @@ void ReceiveHistoryTab::setupUI()
     header->setSectionResizeMode(3, QHeaderView::Fixed);
     header->resizeSection(3, 100);
     header->setSectionResizeMode(4, QHeaderView::Fixed);
-    header->resizeSection(4, 126);
+    header->resizeSection(4, 100);
     header->setSectionResizeMode(5, QHeaderView::Fixed);
-    header->resizeSection(5, 164);
+    header->resizeSection(5, 126);
+    header->setSectionResizeMode(6, QHeaderView::Fixed);
+    header->resizeSection(6, 164);
 
     m_table->setMinimumHeight(180);
     layout->addWidget(m_table);
@@ -93,6 +96,18 @@ QString ReceiveHistoryTab::formatRate(float kbps)
     return QString("%1 kbps").arg(kbps, 0, 'f', 1);
 }
 
+QString ReceiveHistoryTab::formatFileSize(quint64 bytes)
+{
+    if (bytes == 0) return QStringLiteral("--");
+    if (bytes >= 1024ULL * 1024 * 1024)
+        return QString("%1 GB").arg(bytes / (1024.0 * 1024.0 * 1024.0), 0, 'f', 2);
+    if (bytes >= 1024ULL * 1024)
+        return QString("%1 MB").arg(bytes / (1024.0 * 1024.0), 0, 'f', 2);
+    if (bytes >= 1024ULL)
+        return QString("%1 KB").arg(bytes / 1024.0, 0, 'f', 1);
+    return QString("%1 B").arg(bytes);
+}
+
 void ReceiveHistoryTab::applyStatusColor(QTableWidgetItem *statusItem, const QString &status)
 {
     if (!statusItem) {
@@ -110,9 +125,10 @@ void ReceiveHistoryTab::applyStatusColor(QTableWidgetItem *statusItem, const QSt
 void ReceiveHistoryTab::addRecvRecord(unsigned int taskId,
                                       unsigned int senderTid,
                                       const QString &fileName,
+                                      quint64 fileSize,
                                       const QString &status,
                                       float avgSpeedKbps,
-                                      const QString &recvTime)
+                                      const QString &finishTime)
 {
     const int row = m_table->rowCount();
     m_table->insertRow(row);
@@ -120,25 +136,27 @@ void ReceiveHistoryTab::addRecvRecord(unsigned int taskId,
     m_table->setItem(row, 0, new QTableWidgetItem(QString::number(taskId)));
     m_table->setItem(row, 1, new QTableWidgetItem(senderTid == 0 ? QStringLiteral("--") : QString::number(senderTid)));
     m_table->setItem(row, 2, new QTableWidgetItem(fileName));
+    m_table->setItem(row, 3, new QTableWidgetItem(formatFileSize(fileSize)));
 
     auto *statusItem = new QTableWidgetItem(status);
     applyStatusColor(statusItem, status);
-    m_table->setItem(row, 3, statusItem);
+    m_table->setItem(row, 4, statusItem);
 
-    m_table->setItem(row, 4, new QTableWidgetItem(formatRate(avgSpeedKbps)));
-    m_table->setItem(row, 5, new QTableWidgetItem(recvTime));
+    m_table->setItem(row, 5, new QTableWidgetItem(formatRate(avgSpeedKbps)));
+    m_table->setItem(row, 6, new QTableWidgetItem(finishTime));
 }
 
 void ReceiveHistoryTab::upsertRecvProgress(unsigned int taskId,
                                            unsigned int senderTid,
                                            const QString &fileName,
+                                           quint64 fileSize,
                                            const QString &status,
                                            float rateKbps,
-                                           const QString &recvTime)
+                                           const QString &finishTime)
 {
     const int row = findRowByTaskId(taskId);
     if (row < 0) {
-        addRecvRecord(taskId, senderTid, fileName, status, rateKbps, recvTime);
+        addRecvRecord(taskId, senderTid, fileName, fileSize, status, rateKbps, finishTime);
         return;
     }
 
@@ -150,17 +168,24 @@ void ReceiveHistoryTab::upsertRecvProgress(unsigned int taskId,
     if (auto *nameItem = m_table->item(row, 2)) {
         nameItem->setText(fileName);
     }
-    if (auto *statusItem = m_table->item(row, 3)) {
+    if (auto *sizeItem = m_table->item(row, 3)) {
+        if (fileSize > 0) {
+            sizeItem->setText(formatFileSize(fileSize));
+        }
+    }
+    if (auto *statusItem = m_table->item(row, 4)) {
         statusItem->setText(status);
         applyStatusColor(statusItem, status);
     }
-    if (auto *rateItem = m_table->item(row, 4)) {
+    if (auto *rateItem = m_table->item(row, 5)) {
         if (rateKbps > 0.0f) {
             rateItem->setText(formatRate(rateKbps));
         }
     }
-    if (auto *timeItem = m_table->item(row, 5)) {
-        timeItem->setText(recvTime);
+    if (auto *timeItem = m_table->item(row, 6)) {
+        if (!finishTime.isEmpty()) {
+            timeItem->setText(finishTime);
+        }
     }
 }
 
@@ -170,7 +195,7 @@ void ReceiveHistoryTab::updateRecvStatus(unsigned int taskId, const QString &new
     if (row < 0) {
         return;
     }
-    auto *statusItem = m_table->item(row, 3);
+    auto *statusItem = m_table->item(row, 4);
     if (!statusItem) {
         return;
     }

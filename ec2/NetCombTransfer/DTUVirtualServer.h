@@ -27,25 +27,20 @@
 /*
  * DTU Virtual Server
  * create a map from local port to nat port
- * such as local port range : 8000~8999
- * while the nat port range : 7000~7999
- * so the transfer from local port to nat port is : 
- *                              8000 -> 7000
- *                              8001 -> 7001
+ * such as local port range : 7000~7999
+ * while the nat port range : 8000~8999
+ * so the transfer from local port to nat port is :
+ *                              7000 -> 8000
+ *                              7001 -> 8001
  */
 
 class DTUVirtualServer{
 public:
 	DTUVirtualServer(){
-		//LocalPortBegin	= 8000 ;
-		//LocalPortEnd 	= 8999 ;
-		//NatPortBegin  	= 7000 ;
-		//NatPortEnd    	= 7999 ;
-        
-		LocalPortBegin	=   GetIntegerKeyIni("DTU", "LocalPortBegin", 8000 );
-		LocalPortEnd 	=   GetIntegerKeyIni("DTU", "LocalPortEnd", 8999 );
-		NatPortBegin  	=   GetIntegerKeyIni("DTU", "NatPortBegin", 7000 );
-		NatPortEnd    	=   GetIntegerKeyIni("DTU", "NatPortEnd", 7999 );
+		LocalPortBegin	=   GetIntegerKeyIni("DTU", "LocalPortBegin", 7000 );
+		LocalPortEnd 	=   GetIntegerKeyIni("DTU", "LocalPortEnd", 7999 );
+		NatPortBegin  	=   GetIntegerKeyIni("DTU", "NatPortBegin", 8000 );
+		NatPortEnd    	=   GetIntegerKeyIni("DTU", "NatPortEnd", 8999 );
 
         printf("[DEBUG] DTUVirtualServer init:\n");
         printf("LocalPortBegin	=   %d\n", LocalPortBegin); printf("LocalPortEnd 	=   %d\n", LocalPortEnd  );

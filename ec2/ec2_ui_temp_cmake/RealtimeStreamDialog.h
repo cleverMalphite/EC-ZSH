@@ -8,6 +8,7 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QMessageBox>
+#include <QShowEvent>
 
 class VideoSender;
 class VideoReceiver;
@@ -28,6 +29,9 @@ private slots:
     void onStartStopClicked();
     void onTargetChanged(int index);
     void onTerminalListChanged(const QStringList &tids);
+
+protected:
+    void showEvent(QShowEvent *event) override;
 
 private:
     void stopSending();

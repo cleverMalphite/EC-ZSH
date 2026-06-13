@@ -13,7 +13,7 @@ typedef bool (*pVideoRtpRecvDataCallBack)(
 
 void Register_VideoRtp_RecvDataCallBack(pVideoRtpRecvDataCallBack pFunc);
 
-extern pVideoRtpRecvDataCallBack g_video_rtp_recv_callback;
+extern pVideoRtpRecvDataCallBack g_video_rtp_recv_callback;  // 视频RTP接收数据回调函数
 
 #endif
 

@@ -3,7 +3,6 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui_c.h>
 #include <QCoreApplication>
-#include <QDateTime>
 #include <QDir>
 #include <QFileInfo>
 #include <QUrl>
@@ -14,8 +13,6 @@
 #include <QMessageBox>
 #include <QPointer>
 #include <QMetaObject>
-#include <algorithm>
-#include <cmath>
 #include <cstring>
 #include <cstdlib>
 
@@ -48,16 +45,11 @@ static bool VideoSender_SpeedControlRecvDataCallback(DWORD dwTID,
 
 static std::string resolve_default_video_file_path() {
     const QStringList candidates = {
-        QDir::cleanPath(QDir::currentPath() + "/FileSend/videotest.mp4"),
-        QDir::cleanPath(QDir::currentPath() + "/../FileSend/videotest.mp4"),
-        QDir::cleanPath(QDir::currentPath() + "/../../FileSend/videotest.mp4"),
-        QDir::cleanPath(QDir::currentPath() + "/../../../FileSend/videotest.mp4"),
-        QDir::cleanPath(QDir::currentPath() + "/../../../../FileSend/videotest.mp4"),
-        QDir::cleanPath(QCoreApplication::applicationDirPath() + "/../FileSend/videotest.mp4"),
-        QDir::cleanPath(QCoreApplication::applicationDirPath() + "/../../FileSend/videotest.mp4"),
-        QDir::cleanPath(QCoreApplication::applicationDirPath() + "/../../../FileSend/videotest.mp4"),
-        QDir::cleanPath(QCoreApplication::applicationDirPath() + "/../../../../FileSend/videotest.mp4"),
-        QDir::cleanPath(QCoreApplication::applicationDirPath() + "/../../../../../FileSend/videotest.mp4"),
+        QDir::cleanPath(QDir::currentPath() + "/FileSend/AVtest.mp4"),
+        QDir::cleanPath(QDir::currentPath() + "/../FileSend/AVtest.mp4"),
+        QDir::cleanPath(QCoreApplication::applicationDirPath() + "/../FileSend/AVtest.mp4"),
+        QDir::cleanPath(QCoreApplication::applicationDirPath() + "/../../FileSend/AVtest.mp4"),
+        QString("/home/kong/workspace/EC2_12.8/FileSend/AVtest.mp4"),
     };
 
     for (const auto& path : candidates) {
@@ -65,7 +57,7 @@ static std::string resolve_default_video_file_path() {
             return path.toStdString();
         }
     }
-    return "FileSend/videotest.mp4";
+    return "FileSend/AVtest.mp4";
 }
 
 static std::string to_file_uri(const std::string& path) {
@@ -205,164 +197,59 @@ void VideoSender::on_pushButton_return_clicked() {
     on_pushButton_pause_clicked();
 }
 
-VideoSender::StreamProfile VideoSender::profileForLevel(AdaptiveProfileLevel level) const {
-    switch (level) {
-    case AdaptiveProfileLevel::Normal:
-        return StreamProfile{640, 480, 30, 1200, 900, 1600};
-    case AdaptiveProfileLevel::LowBandwidth:
-        return StreamProfile{480, 360, 20, 700, 450, 900};
-    case AdaptiveProfileLevel::Extreme:
-    default:
-        return StreamProfile{320, 240, 15, 350, 200, 500};
+void VideoSender::startGstPipeline(const std::string& host, int port) {
+    // Legacy method - redirect to deep integration for consistency if needed, 
+    // or keep separate. The user asked to implement the "Sender" logic.
+    // I will leave this legacy method as is to not break existing demo behavior 
+    // if called explicitly, but on_pushButton_play_clicked now calls the new one.
+    
+    if (pipeline) {
+        stopGstPipeline();
     }
-}
-
-void VideoSender::updateStatusLabel(const QString &text, bool forceVisible) {
-    if (!this->playerWidget) {
-        return;
-    }
-    QLabel *statusLabel = this->playerWidget->findChild<QLabel *>("statusLabel");
-    if (!statusLabel) {
-        return;
-    }
-    statusLabel->setText(text);
-    if (forceVisible) {
-        statusLabel->setVisible(true);
-        statusLabel->raise();
-    }
-}
-
-bool VideoSender::startAdaptivePipelineInternal() {
-    const StreamProfile profile = profileForLevel(m_currentProfile);
-    fps = profile.fps;
     lastFrameAtMs = -1;
-    updateStatusLabel(QString("启动中... %1x%2 @ %3fps")
-                          .arg(profile.width)
-                          .arg(profile.height)
-                          .arg(profile.fps),
-                      true);
-
-    std::string pipeline_str;
-    const std::string preview_branch =
-        "t. ! queue leaky=downstream max-size-buffers=5 ! videoconvert ! video/x-raw,format=BGR ! "
-        "appsink name=preview_sink drop=true max-buffers=5 sync=false";
-
-    const uint32_t vbvBufSizeKbits = std::max<uint32_t>(profile.maxBitrateKbps, profile.defaultBitrateKbps * 2);
-    const std::string rtp_branch =
-        "t. ! queue leaky=downstream max-size-buffers=4 ! "
-        "x264enc name=enc tune=zerolatency speed-preset=ultrafast bitrate=" + std::to_string(profile.defaultBitrateKbps) +
-        " bframes=0 threads=1 option-string=vbv-bufsize=" + std::to_string(vbvBufSizeKbits) + ":scenecut=0:sliced-threads=1 ! "
-        "rtph264pay mtu=1200 pt=96 config-interval=1 ! "
-        "appsink name=rtp_sink emit-signals=true sync=false max-buffers=10 drop=true";
-
-    if (m_useCameraSource) {
-        pipeline_str =
-            "v4l2src device=/dev/video0 ! videoconvert ! videoscale ! videorate ! "
-            "video/x-raw,width=" + std::to_string(profile.width) +
-            ",height=" + std::to_string(profile.height) +
-            ",framerate=" + std::to_string(profile.fps) + "/1 ! tee name=t " +
-            preview_branch + " " + rtp_branch;
-        std::cout << "[VideoSender] Starting Camera pipeline: " << pipeline_str << std::endl;
-    } else {
-        if (m_videoFilePath.empty()) {
-            m_videoFilePath = resolve_default_video_file_path();
-        }
-        if (!QFileInfo::exists(QString::fromStdString(m_videoFilePath))) {
-            QMessageBox::information(this, "提示信息", QString("找不到视频文件：%1").arg(QString::fromStdString(m_videoFilePath)));
-            updateStatusLabel("启动失败：视频文件不存在", true);
-            return false;
-        }
-        const std::string file_uri = to_file_uri(m_videoFilePath);
-        pipeline_str =
-            "uridecodebin uri=" + file_uri + " ! videoconvert ! videoscale ! videorate ! "
-            "video/x-raw,width=" + std::to_string(profile.width) +
-            ",height=" + std::to_string(profile.height) +
-            ",framerate=" + std::to_string(profile.fps) + "/1 ! tee name=t " +
-            preview_branch + " " + rtp_branch;
-        std::cout << "[VideoSender] Starting adaptive file pipeline: " << pipeline_str << std::endl;
+    if (this->playerWidget) {
+        QLabel *statusLabel = this->playerWidget->findChild<QLabel *>("statusLabel");
+        if (statusLabel) statusLabel->setVisible(true);
     }
+
+    const std::string file_path = resolve_default_video_file_path();
+    const std::string file_uri = to_file_uri(file_path);
+
+    const std::string preview_branch =
+        "t. ! queue ! videoconvert ! video/x-raw,format=BGR ! appsink name=mysink drop=true max-buffers=1 sync=false";
+    const std::string rtp_branch =
+        "t. ! queue ! videoconvert ! x264enc tune=zerolatency speed-preset=ultrafast bitrate=500 key-int-max=30 ! "
+        "rtph264pay pt=96 config-interval=1 ! udpsink host=" + host + " port=" + std::to_string(port);
+
+    std::string pipeline_str =
+        "uridecodebin uri=" + file_uri + " ! videoconvert ! videoscale ! videorate ! "
+        "video/x-raw,width=1280,height=720,framerate=30/1 ! tee name=t " +
+        preview_branch + " " + rtp_branch;
+
+    std::cout << "[VideoSender] Starting file pipeline (loop expected): " << pipeline_str << std::endl;
 
     GError *error = nullptr;
     pipeline = gst_parse_launch(pipeline_str.c_str(), &error);
     if (error) {
         std::cerr << "[VideoSender] Error creating pipeline: " << error->message << std::endl;
         g_error_free(error);
-        pipeline = nullptr;
-        QMessageBox::information(this, "提示信息", "启动发送失败：GStreamer pipeline 创建失败");
-        updateStatusLabel("启动失败", true);
-        return false;
-    }
-
-    encoder = gst_bin_get_by_name(GST_BIN(pipeline), "enc");
-    appsink_preview = gst_bin_get_by_name(GST_BIN(pipeline), "preview_sink");
-    appsink_rtp = gst_bin_get_by_name(GST_BIN(pipeline), "rtp_sink");
-    if (!encoder || !appsink_preview || !appsink_rtp) {
-        std::cerr << "[VideoSender] Could not get encoder/preview_sink/rtp_sink from pipeline" << std::endl;
-        stopGstPipeline();
-        return false;
-    }
-
-    if (GParamSpec *prop = g_object_class_find_property(G_OBJECT_GET_CLASS(encoder), "byte-stream")) {
-        (void)prop;
-        g_object_set(G_OBJECT(encoder), "byte-stream", TRUE, nullptr);
-    }
-    if (GParamSpec *prop = g_object_class_find_property(G_OBJECT_GET_CLASS(encoder), "intra-refresh")) {
-        (void)prop;
-        g_object_set(G_OBJECT(encoder), "intra-refresh", TRUE, nullptr);
-    }
-
-    g_signal_connect(appsink_rtp, "new-sample", G_CALLBACK(on_new_sample_from_sink), this);
-
-    GstStateChangeReturn state_ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
-    if (state_ret == GST_STATE_CHANGE_FAILURE) {
-        QMessageBox::information(this, "提示信息", "启动发送失败：pipeline 无法进入 PLAYING 状态");
-        stopGstPipeline();
-        return false;
-    }
-
-    timer_appsink->start(33);
-    if (timer_adaptation && !timer_adaptation->isActive()) {
-        timer_adaptation->start(m_adaptationPollIntervalMs);
-    }
-    this->playerWidget->startPlay(fps);
-    this->is_play = true;
-    m_appliedProfile = m_currentProfile;
-    applyEncoderBitrate(profile.defaultBitrateKbps);
-
-    QString profileName;
-    switch (m_currentProfile) {
-    case AdaptiveProfileLevel::Normal:
-        profileName = "Normal";
-        break;
-    case AdaptiveProfileLevel::LowBandwidth:
-        profileName = "Low";
-        break;
-    case AdaptiveProfileLevel::Extreme:
-    default:
-        profileName = "Extreme";
-        break;
-    }
-    updateStatusLabel(QString("发送中... %1 %2x%3 @ %4fps")
-                          .arg(profileName)
-                          .arg(profile.width)
-                          .arg(profile.height)
-                          .arg(profile.fps),
-                      true);
-    return true;
-}
-
-void VideoSender::restartAdaptivePipeline() {
-    if (m_isStopping.load()) {
         return;
     }
-    stopGstPipeline();
-    m_targetBitrateKbps = 0;
-    startAdaptivePipelineInternal();
-}
 
-void VideoSender::startGstPipeline(const std::string&, int) {
-    const int targetTID = getIntFromIni("BigDataTransfer", "DEST_TID", 105);
-    startDeepIntegrationPipeline(targetTID);
+    // Get appsink
+    appsink_preview = gst_bin_get_by_name(GST_BIN(pipeline), "mysink");
+    if (!appsink_preview) {
+        std::cerr << "[VideoSender] Could not get appsink from pipeline" << std::endl;
+    }
+
+    // Start pipeline
+    gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    
+    // Start local preview timer
+    timer_appsink->start(33); // ~30fps
+    
+    this->playerWidget->startPlay(fps);
+    this->is_play = true;
 }
 
 void VideoSender::startDeepIntegrationPipeline(int destTID) {
@@ -375,203 +262,149 @@ void VideoSender::startDeepIntegrationPipeline(int destTID) {
     m_sendBytesWindow = 0;
     m_sendFailWindow = 0;
     m_sendStatClock.restart();
-    m_targetBitrateKbps = 0;
-    m_lastAppliedSpeedMbps = 0;
-    m_smoothedBandwidthKbps = 0.0;
-    m_smoothedRttMs = 0.0;
-    m_lastRawRttMs = 0.0;
-    m_lastQueueDepth = 0;
-    m_lastQueueCapacity = 0;
-    m_lastAdaptiveLogMs = 0;
-    m_lastProfileSwitchMs = QDateTime::currentMSecsSinceEpoch();
-    m_currentProfile = AdaptiveProfileLevel::Normal;
-    m_appliedProfile = AdaptiveProfileLevel::Normal;
     g_video_sender_instance = this;
-
-    m_normalMinKbps = static_cast<uint32_t>(std::max(600, getIntFromIni("VideoAdaptive", "NormalMinKbps", 1000)));
-    m_lowMinKbps = static_cast<uint32_t>(std::max(250, getIntFromIni("VideoAdaptive", "LowMinKbps", 500)));
-    m_queueLowWatermark = static_cast<DWORD>(std::max(10, getIntFromIni("VideoAdaptive", "QueueLowPackets", 40)));
-    m_queueHighWatermark = static_cast<DWORD>(std::max(20, getIntFromIni("VideoAdaptive", "QueueHighPackets", 120)));
-    m_queueCriticalWatermark = static_cast<DWORD>(std::max(static_cast<int>(m_queueHighWatermark + 20), getIntFromIni("VideoAdaptive", "QueueCriticalPackets", 240)));
-    m_profileSwitchCooldownMs = std::max(500, getIntFromIni("VideoAdaptive", "ProfileSwitchCooldownMs", 1500));
-    m_adaptationPollIntervalMs = std::max(100, getIntFromIni("VideoAdaptive", "PollIntervalMs", 300));
-
-    const char *video_src_env = std::getenv("EC2_VIDEO_SOURCE");
-    m_useCameraSource = (video_src_env && std::string(video_src_env) == "camera");
-    m_videoFilePath = resolve_default_video_file_path();
-
-    if (timer_adaptation) {
-        timer_adaptation->setInterval(m_adaptationPollIntervalMs);
+    static bool s_speedcontrol_cb_registered = false;
+    if (!s_speedcontrol_cb_registered) {
+        Register_SpeedControl_RecvDataCallBack(VideoSender_SpeedControlRecvDataCallback);
+        s_speedcontrol_cb_registered = true;
     }
+    
+    // Check for camera source override via environment variable
+    const char* video_src_env = std::getenv("EC2_VIDEO_SOURCE");
+    bool use_camera = (video_src_env && std::string(video_src_env) == "camera");
 
-    if (!startAdaptivePipelineInternal()) {
-        return;
-    }
-}
+    std::string pipeline_str;
+    if (use_camera) {
+        // Camera source pipeline (v4l2src)
+        const std::string preview_branch =
+            "t. ! queue ! videoconvert ! video/x-raw,format=BGR ! "
+            "appsink name=preview_sink drop=true max-buffers=1 sync=true";
 
-void VideoSender::on_adaptation_tick() {
-    updateAdaptiveController();
-}
+        const std::string rtp_branch =
+            "t. ! queue ! "
+            "x264enc name=enc tune=zerolatency speed-preset=superfast bitrate=2500 key-int-max=30 bframes=0 ! "
+            "rtph264pay mtu=1200 pt=96 config-interval=1 ! "
+            "appsink name=rtp_sink emit-signals=true sync=true max-buffers=10 drop=true";
 
-void VideoSender::updateAdaptiveController() {
-    if (m_destTID <= 0 || m_isStopping.load()) {
-        return;
-    }
-
-    const TermToTermRoundTripTime qos = MRUDP_Get_QosRtt(static_cast<DWORD>(m_destTID));
-    const double rawBandwidthKbps = qos.bandwidth > 0 ? static_cast<double>(qos.bandwidth) : 0.0;
-    const double rawRttMs = qos.roundtriptime > 0 ? static_cast<double>(qos.roundtriptime) : 5.0;
-
-    if (rawBandwidthKbps > 0.0) {
-        if (m_smoothedBandwidthKbps <= 0.0) {
-            m_smoothedBandwidthKbps = rawBandwidthKbps;
-        } else {
-            m_smoothedBandwidthKbps = m_smoothedBandwidthKbps * 0.75 + rawBandwidthKbps * 0.25;
-        }
-    }
-    if (m_smoothedRttMs <= 0.0) {
-        m_smoothedRttMs = rawRttMs;
+        pipeline_str =
+            "v4l2src device=/dev/video0 ! videoconvert ! videoscale ! videorate ! "
+            "video/x-raw,width=640,height=480,framerate=30/1 ! tee name=t " +
+            preview_branch + " " + rtp_branch;
+        
+        std::cout << "[VideoSender] Starting Camera pipeline: " << pipeline_str << std::endl;
     } else {
-        m_smoothedRttMs = m_smoothedRttMs * 0.80 + rawRttMs * 0.20;
-    }
-    const double rttTrendMs = (m_lastRawRttMs > 0.0) ? (rawRttMs - m_lastRawRttMs) : 0.0;
-    m_lastRawRttMs = rawRttMs;
+        // Existing File source pipeline logic
+        const std::string file_path = resolve_default_video_file_path();
+        if (!QFileInfo::exists(QString::fromStdString(file_path))) {
+            QMessageBox::information(this, "提示信息", QString("找不到视频文件：%1").arg(QString::fromStdString(file_path)));
+            return;
+        }
+        const std::string file_uri = to_file_uri(file_path);
 
-    DWORD queueDepth = 0;
-    DWORD queueCapacity = 0;
-    if (GetSpeedControlQueueStats(static_cast<DWORD>(m_destTID), queueDepth, queueCapacity)) {
-        m_lastQueueDepth = queueDepth;
-        m_lastQueueCapacity = queueCapacity;
+        const std::string preview_branch =
+            "t. ! queue ! videoconvert ! video/x-raw,format=BGR ! "
+            "appsink name=preview_sink drop=true max-buffers=1 sync=true";
+
+        const std::string rtp_branch =
+            "t. ! queue ! "
+            "x264enc name=enc tune=zerolatency speed-preset=superfast bitrate=2500 key-int-max=30 bframes=0 ! "
+            "rtph264pay mtu=1200 pt=96 config-interval=1 ! "
+            "appsink name=rtp_sink emit-signals=true sync=true max-buffers=10 drop=true";
+
+        pipeline_str =
+            "uridecodebin uri=" + file_uri + " ! videoconvert ! videoscale ! videorate ! "
+            "video/x-raw,width=640,height=480,framerate=30/1 ! tee name=t " +
+            preview_branch + " " + rtp_branch;
+
+        std::cout << "[VideoSender] Starting Deep Integration pipeline (mp4 loop): " << pipeline_str << std::endl;
+    }
+
+    GError *error = nullptr;
+    pipeline = gst_parse_launch(pipeline_str.c_str(), &error);
+    if (error) {
+        std::cerr << "[VideoSender] Error creating pipeline: " << error->message << std::endl;
+        g_error_free(error);
+        pipeline = nullptr;
+        QMessageBox::information(this, "提示信息", "启动发送失败：GStreamer pipeline 创建失败");
+        if (this->playerWidget) {
+            QLabel *statusLabel = this->playerWidget->findChild<QLabel *>("statusLabel");
+            if (statusLabel) {
+                statusLabel->setText("启动失败");
+                statusLabel->setVisible(true);
+            }
+        }
+        return;
+    }
+
+    encoder = gst_bin_get_by_name(GST_BIN(pipeline), "enc");
+    appsink_preview = gst_bin_get_by_name(GST_BIN(pipeline), "preview_sink");
+    appsink_rtp = gst_bin_get_by_name(GST_BIN(pipeline), "rtp_sink");
+    if (appsink_rtp) {
+        g_signal_connect(appsink_rtp, "new-sample", G_CALLBACK(on_new_sample_from_sink), this);
     } else {
-        queueDepth = m_lastQueueDepth;
-        queueCapacity = m_lastQueueCapacity;
+        std::cerr << "[VideoSender] Could not get rtp_sink from pipeline" << std::endl;
     }
 
-    double effectiveBandwidthKbps = (m_smoothedBandwidthKbps > 0.0)
-        ? m_smoothedBandwidthKbps
-        : static_cast<double>(profileForLevel(m_currentProfile).defaultBitrateKbps);
-    if (rttTrendMs > 20.0) {
-        effectiveBandwidthKbps *= 0.92;
-    }
-    if (rttTrendMs > 40.0) {
-        effectiveBandwidthKbps *= 0.85;
-    }
-    if (queueDepth >= m_queueHighWatermark) {
-        effectiveBandwidthKbps *= 0.85;
-    }
-    if (queueDepth >= m_queueCriticalWatermark) {
-        effectiveBandwidthKbps *= 0.65;
-    }
-
-    const AdaptiveProfileLevel targetProfile = decideProfile(effectiveBandwidthKbps, m_smoothedRttMs, rttTrendMs, queueDepth);
-    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
-    if (targetProfile != m_currentProfile && (nowMs - m_lastProfileSwitchMs) >= m_profileSwitchCooldownMs) {
-        m_currentProfile = targetProfile;
-        m_lastProfileSwitchMs = nowMs;
-        restartAdaptivePipeline();
-    }
-
-    const StreamProfile profile = profileForLevel(m_currentProfile);
-    double desiredBitrateKbps = effectiveBandwidthKbps * 0.85;
-    if (desiredBitrateKbps <= 0.0) {
-        desiredBitrateKbps = static_cast<double>(profile.defaultBitrateKbps);
-    }
-    if (queueDepth >= m_queueHighWatermark) {
-        desiredBitrateKbps *= 0.90;
-    }
-    if (queueDepth >= m_queueCriticalWatermark) {
-        desiredBitrateKbps = std::min<double>(desiredBitrateKbps, profile.minBitrateKbps);
-    }
-    desiredBitrateKbps = std::max<double>(desiredBitrateKbps, profile.minBitrateKbps);
-    desiredBitrateKbps = std::min<double>(desiredBitrateKbps, profile.maxBitrateKbps);
-    applyEncoderBitrate(static_cast<uint32_t>(std::lround(desiredBitrateKbps)));
-
-    if (nowMs - m_lastAdaptiveLogMs >= 1500) {
-        const char *profileName = (m_currentProfile == AdaptiveProfileLevel::Normal)
-            ? "Normal"
-            : (m_currentProfile == AdaptiveProfileLevel::LowBandwidth ? "Low" : "Extreme");
-        std::cout << "[VideoSender][Adaptive] dest=" << m_destTID
-                  << " bw_kbps=" << static_cast<int64_t>(m_smoothedBandwidthKbps)
-                  << " rtt_ms=" << static_cast<int64_t>(m_smoothedRttMs)
-                  << " q=" << queueDepth;
-        if (queueCapacity > 0) {
-            std::cout << "/" << queueCapacity;
-        }
-        std::cout << " profile=" << profileName
-                  << " bitrate_kbps=" << m_targetBitrateKbps
-                  << std::endl;
-        m_lastAdaptiveLogMs = nowMs;
-    }
-}
-
-VideoSender::AdaptiveProfileLevel VideoSender::decideProfile(double effectiveBandwidthKbps,
-                                                             double smoothedRttMs,
-                                                             double rttTrendMs,
-                                                             DWORD queueDepth) const {
-    const bool queueLow = queueDepth <= m_queueLowWatermark;
-    const bool queueHigh = queueDepth >= m_queueHighWatermark;
-    const bool queueCritical = queueDepth >= m_queueCriticalWatermark;
-
-    switch (m_currentProfile) {
-    case AdaptiveProfileLevel::Normal:
-        if (queueCritical || effectiveBandwidthKbps < static_cast<double>(m_lowMinKbps) * 0.85 ||
-            (smoothedRttMs > 260.0 && rttTrendMs > 25.0)) {
-            return AdaptiveProfileLevel::Extreme;
-        }
-        if (queueHigh || effectiveBandwidthKbps < static_cast<double>(m_normalMinKbps) ||
-            (smoothedRttMs > 180.0 && rttTrendMs > 20.0)) {
-            return AdaptiveProfileLevel::LowBandwidth;
-        }
-        return AdaptiveProfileLevel::Normal;
-    case AdaptiveProfileLevel::LowBandwidth:
-        if (queueCritical || effectiveBandwidthKbps < static_cast<double>(m_lowMinKbps) * 0.80 ||
-            (smoothedRttMs > 260.0 && rttTrendMs > 25.0)) {
-            return AdaptiveProfileLevel::Extreme;
-        }
-        if (queueLow && effectiveBandwidthKbps > static_cast<double>(m_normalMinKbps) + 150.0 && smoothedRttMs < 140.0) {
-            return AdaptiveProfileLevel::Normal;
-        }
-        return AdaptiveProfileLevel::LowBandwidth;
-    case AdaptiveProfileLevel::Extreme:
-    default:
-        if (queueLow && effectiveBandwidthKbps > static_cast<double>(m_lowMinKbps) + 120.0 && smoothedRttMs < 180.0) {
-            return AdaptiveProfileLevel::LowBandwidth;
-        }
-        return AdaptiveProfileLevel::Extreme;
-    }
-}
-
-void VideoSender::applyEncoderBitrate(uint32_t targetKbps) {
-    if (targetKbps == 0) {
+    GstStateChangeReturn state_ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    if (state_ret == GST_STATE_CHANGE_FAILURE) {
+        QMessageBox::information(this, "提示信息", "启动发送失败：pipeline 无法进入 PLAYING 状态");
+        stopGstPipeline();
         return;
     }
-
-    const uint32_t delta = (m_targetBitrateKbps > targetKbps)
-        ? (m_targetBitrateKbps - targetKbps)
-        : (targetKbps - m_targetBitrateKbps);
-    if (m_targetBitrateKbps != 0 && delta < 40) {
-        return;
-    }
-
-    m_targetBitrateKbps = targetKbps;
-    if (encoder) {
-        g_object_set(G_OBJECT(encoder), "bitrate", static_cast<guint>(targetKbps), nullptr);
-    }
-
-    if (m_destTID > 0) {
-        const uint32_t targetMbps = std::max<uint32_t>(1, (targetKbps + 999U) / 1000U);
-        if (targetMbps != m_lastAppliedSpeedMbps) {
-            ExChangeTransSpeedOfTID(static_cast<DWORD>(m_destTID), static_cast<DWORD>(targetMbps));
-            m_lastAppliedSpeedMbps = targetMbps;
+    timer_appsink->start(33);
+    this->playerWidget->startPlay(fps);
+    this->is_play = true;
+    if (this->playerWidget) {
+        QLabel *statusLabel = this->playerWidget->findChild<QLabel *>("statusLabel");
+        if (statusLabel) {
+            statusLabel->setText(QString("发送中... (DEST_TID=%1)").arg(m_destTID));
+            statusLabel->setVisible(true);
+            statusLabel->raise();
         }
     }
 }
 
 bool VideoSender::onSpeedControlRecvData(DWORD,
-                                         const std::shared_ptr<BYTE> &,
-                                         DWORD,
+                                         const std::shared_ptr<BYTE> &pBuffer,
+                                         DWORD dwLength,
                                          long int &,
                                          long int &) {
+    if (!pBuffer || dwLength < 13) {
+        return true;
+    }
+    const BYTE *typed = pBuffer.get();
+    if (typed[0] != 0x01) {
+        return true;
+    }
+
+    uint32_t recv_bps = 0;
+    uint32_t loss_x1000 = 0;
+    memcpy(&recv_bps, typed + 1, 4);
+    memcpy(&loss_x1000, typed + 5, 4);
+    recv_bps = ntohl(recv_bps);
+    loss_x1000 = ntohl(loss_x1000);
+
+    const uint32_t min_bps = 200000;
+    const uint32_t max_bps = 8000000;
+    uint32_t target_bps = recv_bps;
+    if (loss_x1000 > 0 && loss_x1000 <= 1000) {
+        target_bps = static_cast<uint32_t>((static_cast<uint64_t>(recv_bps) * (1000ULL - loss_x1000)) / 1000ULL);
+    }
+    if (target_bps < min_bps) target_bps = min_bps;
+    if (target_bps > max_bps) target_bps = max_bps;
+
+    const uint32_t target_kbps = target_bps / 1000;
+    if (m_targetBitrateKbps == 0 ||
+        (target_kbps > m_targetBitrateKbps ? target_kbps - m_targetBitrateKbps : m_targetBitrateKbps - target_kbps) >= 50) {
+        m_targetBitrateKbps = target_kbps;
+        if (encoder) {
+            g_object_set(G_OBJECT(encoder), "bitrate", static_cast<guint>(target_kbps), nullptr);
+        }
+        const uint32_t target_mbps = static_cast<uint32_t>((target_bps + 500000) / 1000000);
+        if (m_destTID > 0 && target_mbps > 0) {
+            ExChangeTransSpeedOfTID(static_cast<DWORD>(m_destTID), static_cast<DWORD>(target_mbps));
+        }
+    }
     return true;
 }
 
@@ -663,9 +496,6 @@ void VideoSender::stopGstPipeline() {
     if (appsink_rtp) {
         gst_object_unref(appsink_rtp);
         appsink_rtp = nullptr;
-    }
-    if (timer_adaptation) {
-        timer_adaptation->stop();
     }
     timer_appsink->stop();
     this->playerWidget->stopPlay();

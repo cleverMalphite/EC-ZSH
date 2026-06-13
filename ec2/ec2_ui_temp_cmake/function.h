@@ -65,6 +65,7 @@ typedef struct SendTaskState {
  float _transferSpeed;
  unsigned int _transferTime;
  unsigned int _taskState;
+ quint64 _fileSize = 0;
  vector<map<unsigned int ,float>> _historySpeed;
 } TaskSendState;
 
@@ -77,6 +78,7 @@ typedef struct RecvTaskState {
  float _transferSpeed;
  unsigned int _transferTime;
  unsigned int _taskState;
+ quint64 _fileSize = 0;
  float _loseRate;    //丢包率
  vector<map<unsigned int ,float>> _historySpeed;
 } TaskRecvState;
@@ -140,10 +142,32 @@ void TerminalListCallBack(std::vector<Terminal> terminalList);
 //                                unsigned int taskState);
 
 
-//創建服務器
-bool createServer(std::string localAddr,int localPort,bool isDTU);
-//創建客戶端
-bool createClient(std::string localAddr,int localPort,std::string remoteAddr,unsigned int remotePort,bool isDTU);
+//通道类型枚举：与 EpollComm channelHead 解耦
+#ifndef CONN_MODE_ENUM_DEFINED
+#define CONN_MODE_ENUM_DEFINED
+enum class ConnMode {
+    MeshOnly  = 0,  // 仅自组网
+    DTUOnly   = 1,  // 仅5G DTU
+    DualPath  = 2   // 双链路带宽叠加
+};
+#endif
+
+//創建服務器（增加 channelHead 参数,默认 3020 保持兼容）
+bool createServer(std::string localAddr, int localPort, bool isDTU,
+                  DWORD channelHead = 3020, DWORD channelNumber = 100);
+//創建客戶端（增加 channel 参数,默认 3200 保持兼容）
+bool createClient(std::string localAddr, int localPort,
+                  std::string remoteAddr, unsigned int remotePort, bool isDTU,
+                  DWORD channel = 3200);
+
+//创建双路径服务器（自组网 + DTU 同时监听）
+bool createDualServer(std::string meshAddr, int meshPort,
+                      std::string dtuAddr, int dtuPort);
+//创建双路径客户端（自组网 + DTU 同时连接）
+bool createDualClient(std::string meshAddr, int meshPort,
+                      std::string meshRemoteAddr, int meshRemotePort,
+                      std::string dtuAddr, int dtuPort,
+                      std::string dtuRemoteAddr, int dtuRemotePort);
 // bool createServer(st_arg starg);
 
 //创建发送任务

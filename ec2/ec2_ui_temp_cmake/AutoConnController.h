@@ -5,10 +5,25 @@
 #include <QTimer>
 #include <QString>
 #include <QStringList>
+#include <QMap>
+#include <QQueue>
+#include <QPair>
 #include <string>
 #include <memory>
 #include <deque>
 #include <vector>
+
+class FileWatchDog;
+
+// 连接模式枚举（与 function.h 中的 ConnMode 保持一致，用 #ifndef 防冲突）
+#ifndef CONN_MODE_ENUM_DEFINED
+#define CONN_MODE_ENUM_DEFINED
+enum class ConnMode {
+    MeshOnly  = 0,  // 仅自组网
+    DTUOnly   = 1,  // 仅5G DTU
+    DualPath  = 2   // 双链路带宽叠加
+};
+#endif
 
 enum class NodeRole {
     UAV    = 1,
@@ -38,12 +53,26 @@ public:
 
     void requestReconnect();
     void applyManualConnection(const QString &localAddr, int localPort,
-                               const QString &remoteAddr, int remotePort);
+                               const QString &remoteAddr, int remotePort,
+                               ConnMode mode = ConnMode::MeshOnly,
+                               const QString &dtuLocalAddr = QString(),
+                               int dtuLocalPort = 0,
+                               const QString &dtuRemoteAddr = QString(),
+                               int dtuRemotePort = 0);
+
+    ConnMode connMode() const { return m_connMode; }
+    // 兼容旧接口：判断是否 DTU 相关模式
+    bool isDTU() const { return m_connMode != ConnMode::MeshOnly; }
 
     QString localAddr() const { return QString::fromStdString(m_localAddr); }
     int localPort() const { return m_localPort; }
     QString remoteAddr() const { return QString::fromStdString(m_remoteAddr); }
     int remotePort() const { return m_remotePort; }
+
+    QString dtuLocalAddr() const { return QString::fromStdString(m_dtuLocalAddr); }
+    int dtuLocalPort() const { return m_dtuLocalPort; }
+    QString dtuRemoteAddr() const { return QString::fromStdString(m_dtuRemoteAddr); }
+    int dtuRemotePort() const { return m_dtuRemotePort; }
 
 signals:
     void stateChanged(ConnState newState);
@@ -54,10 +83,12 @@ signals:
     void transferRateUpdated(float sendKbps, float recvKbps);
 
     void sendProgressUpdated(unsigned int taskId, unsigned int receiverTid,
-                             const QString &filename, float rateKbps, unsigned int percent);
+                             const QString &filename, quint64 fileSize,
+                             float rateKbps, unsigned int percent);
 
     void recvProgressUpdated(unsigned int taskId, unsigned int senderTid,
-                             const QString &filename, float rateKbps, unsigned int percent);
+                             const QString &filename, quint64 fileSize,
+                             float rateKbps, unsigned int percent);
 
 private slots:
     void onRetryTimer();
@@ -88,6 +119,14 @@ private:
     int          m_retryIntervalMs  = 3000;
     int          m_heartbeatTimeoutMs = 5000;
 
+    ConnMode     m_connMode           = ConnMode::MeshOnly;  // 连接模式
+
+    // DTU 链路参数（ConnMode=DTUOnly 或 DualPath 时有效）
+    std::string  m_dtuLocalAddr;
+    int          m_dtuLocalPort      = 0;
+    std::string  m_dtuRemoteAddr;
+    int          m_dtuRemotePort     = 0;
+
     bool         m_enableDiscovery      = false;
     int          m_discoveryPort        = 39001;
     int          m_discoveryIntervalMs  = 1000;
@@ -112,7 +151,20 @@ private:
     QTimer      *m_rateTimer      = nullptr;
     QTimer      *m_discoveryTimer = nullptr;
 
+    // ---- 自动发送（仅 UAV 端）----
+    bool                m_autoSendEnabled      = false;
+    unsigned int        m_autoSendTargetTid    = 0;
+    int                 m_autoSendStableChecks = 2;
+    int                 m_autoSendScanIntervalMs = 2000;
+    QString             m_autoSendDir;
+    FileWatchDog       *m_fileWatchDog         = nullptr;
+    QTimer             *m_autoSendTimer        = nullptr;
+    QQueue<QPair<QString, QString>> m_autoSendQueue;  // (filePath, fileName)
+
     void readConfig();
+    void initAutoSend();
+    void onFileReady(const QString &absolutePath, const QString &fileName);
+    void processAutoSendQueue();
     void setState(ConnState s);
     void doStartListening();
     void doConnect();
@@ -139,6 +191,10 @@ private:
     std::deque<float> m_recvRateSamples;
     QStringList m_lastOnlineTidList;
     static constexpr std::size_t kRateSmoothSampleCount = 3;
+
+    // 节流：记录上次已上报给 UI 的进度百分比，避免相同进度反复刷日志
+    QMap<unsigned int, unsigned int> m_lastSentSendPct;
+    QMap<unsigned int, unsigned int> m_lastSentRecvPct;
 };
 
 #endif // AUTOCONNCONTROLLER_H

@@ -54,6 +54,9 @@ include_directories(${PROJECT_DIR}/Term2TermQos)
 
 include_directories(${PROJECT_DIR}/Util)
 include_directories(${PROJECT_DIR}/public)
+include_directories(${PROJECT_DIR}/thirdparty/rpclib/include)
+include_directories(${PROJECT_DIR}/thirdparty/libhv/include)
+include_directories(${PROJECT_DIR}/infoHub)
 
 set(LIBRARIES
         pthread
@@ -214,6 +217,66 @@ target_include_directories(ec2_ui_test PRIVATE
 )
 
 target_compile_options(ec2_ui_test PRIVATE
+        ${GST_CFLAGS_OTHER}
+)
+
+# ---- ec2_autoconn 自动连接模式 ----
+add_executable(ec2_autoconn
+        main_autoconn.cpp
+        ../public/_public.cpp
+        function.cpp
+        AutoConnController.cpp
+        FileWatchDog.cpp
+        AutoConnWindow.cpp
+        SendHistoryTab.cpp
+        ReceiveHistoryTab.cpp
+        RateChartWidget.cpp
+        SatelliteImageWidget.cpp
+        RealtimeStreamDialog.cpp
+        VideoSender.cpp
+        VideoReceiver.cpp
+        AudioSenderCore.cpp
+        AudioReceiverCore.cpp
+        playerwidget.cpp
+        ${PROJECT_DIR}/DataTransfer/fileblock/msg_cpp/FileBlockMsg.pb.cc
+        ${PROJECT_DIR}/Util/DataUpdater.h
+)
+
+target_link_libraries(ec2_autoconn
+        Qt5::Core
+        Qt5::Gui
+        Qt5::Widgets
+        Qt5::Charts
+        Threads::Threads
+        ${OpenCV_LIBS}
+        ${GST_LIBRARIES}
+        ${Protobuf_LIBRARIES}
+        IniHandler
+        infoHub
+        NetEpollComm
+        NetCombTransferAPI
+        SpeedControl
+        MRUDP
+        RBUDP
+        BigDataTransfer
+        QOS
+        rpc
+        hv_static
+)
+
+target_link_directories(ec2_autoconn
+        PRIVATE
+        /usr/local/lib/
+        ${LIB_DIRS}
+        ${PROJECT_DIR}/build/rpclib
+        ${PROJECT_DIR}/thirdparty/libhv/build/lib
+)
+
+target_include_directories(ec2_autoconn PRIVATE
+        ${GST_INCLUDE_DIRS}
+)
+
+target_compile_options(ec2_autoconn PRIVATE
         ${GST_CFLAGS_OTHER}
 )
 

@@ -94,6 +94,18 @@ bool CIP_SOCKET::net_open(int type) { //安全，同时对一个对象执行open
             perror("setsocket recvbuf error");
             return false;
         }
+
+        // 启用TCP keepalive，防止空闲连接被NAT/防火墙静默丢弃
+        int keepAlive = 1;
+        setsockopt(mLocalSock, SOL_SOCKET, SO_KEEPALIVE, &keepAlive, sizeof(keepAlive));
+
+        int keepIdle = 30;     // 空闲30秒后开始发送探测包
+        int keepInterval = 5;  // 每5秒发送一次探测包
+        int keepCount = 3;     // 3次无响应判定连接断开
+
+        setsockopt(mLocalSock, IPPROTO_TCP, TCP_KEEPIDLE, &keepIdle, sizeof(keepIdle));
+        setsockopt(mLocalSock, IPPROTO_TCP, TCP_KEEPINTVL, &keepInterval, sizeof(keepInterval));
+        setsockopt(mLocalSock, IPPROTO_TCP, TCP_KEEPCNT, &keepCount, sizeof(keepCount));
     } else {        //UdpSock没有sendbuf
         if (setsockopt(mLocalSock, SOL_SOCKET, SO_RCVBUF, (const char *) &socketBuffer, sizeof(int)) == -1) {
             perror("setsocket recvbuf error");
@@ -223,6 +235,16 @@ bool CIP_SOCKET::net_accept(int dwChannel) {
         //printf("Error: mAccept() failed\n");
         return false;
     }
+
+    // 为accepted连接也启用TCP keepalive（accept不会继承监听socket的keepalive设置）
+    int keepAlive = 1;
+    setsockopt(mAcceptSock, SOL_SOCKET, SO_KEEPALIVE, &keepAlive, sizeof(keepAlive));
+    int keepIdle = 30;
+    int keepInterval = 5;
+    int keepCount = 3;
+    setsockopt(mAcceptSock, IPPROTO_TCP, TCP_KEEPIDLE, &keepIdle, sizeof(keepIdle));
+    setsockopt(mAcceptSock, IPPROTO_TCP, TCP_KEEPINTVL, &keepInterval, sizeof(keepInterval));
+    setsockopt(mAcceptSock, IPPROTO_TCP, TCP_KEEPCNT, &keepCount, sizeof(keepCount));
 
     mRemoteSock = mAcceptSock;
     mRemoteAddr = mAcceptAddr;

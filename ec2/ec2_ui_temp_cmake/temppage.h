@@ -65,8 +65,8 @@ private:
 
     //创建发送任务
     QFileDialog *fileDialog;
-    std::string fileName_sendTask;
-    std::string filePath_sendTask;
+    std::vector<std::string> fileNames_sendTask;
+    std::vector<std::string> filePaths_sendTask;
     //开启自动发送
     bool is_receiver_autoSend;
     bool is_sender_autoSend;

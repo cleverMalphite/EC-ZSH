@@ -34,8 +34,9 @@ bool SatelliteImageWidget::loadImage(const QString &imagePath)
 
     // 常见兜底路径：ec2/build/ec2_autoconn 启动时，图片在 ../pic
     const QString appDir = QApplication::applicationDirPath();
-    candidates << QDir(appDir).absoluteFilePath("../pic/OIP-C.webp");
-    candidates << QDir(appDir).absoluteFilePath("../../ec2/pic/OIP-C.webp");
+    candidates << QDir(appDir).absoluteFilePath("../pic/OIP.webp");
+    candidates << QDir(appDir).absoluteFilePath("../../ec2/pic/OIP.webp");
+    candidates << QDir(appDir).absoluteFilePath("../../pic/OIP.webp");
 
     // 去重
     candidates.removeDuplicates();
@@ -81,13 +82,8 @@ void SatelliteImageWidget::paintEvent(QPaintEvent *)
     painter.setRenderHint(QPainter::SmoothPixmapTransform);
 
     if (!m_originalPixmap.isNull()) {
-        const QPixmap scaled = m_originalPixmap.scaled(size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        QRect targetRect(
-            (width() - scaled.width()) / 2,
-            (height() - scaled.height()) / 2,
-            scaled.width(),
-            scaled.height());
-        painter.drawPixmap(targetRect, scaled);
+        const QPixmap scaled = m_originalPixmap.scaled(size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        painter.drawPixmap(0, 0, scaled);
     } else {
         painter.setPen(Qt::gray);
         QFont font = painter.font();

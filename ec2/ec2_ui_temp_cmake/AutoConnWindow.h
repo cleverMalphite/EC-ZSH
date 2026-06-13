@@ -7,12 +7,14 @@
 #include <QDateTime>
 #include <QFileDialog>
 #include <QStringList>
+#include <QMap>
 #include "AutoConnController.h"
 
 class SatelliteImageWidget;
 class SendHistoryTab;
 class ReceiveHistoryTab;
 class RealtimeStreamDialog;
+class RateChartWidget;
 
 namespace Ui {
 class AutoConnWindow;
@@ -41,15 +43,18 @@ private slots:
     void onSendFileBtnClicked();
     void onTransferRateUpdated(float sendKbps, float recvKbps);
     void onSendProgressUpdated(unsigned int taskId, unsigned int receiverTid,
-                               const QString &filename, float rateKbps, unsigned int percent);
+                               const QString &filename, quint64 fileSize,
+                               float rateKbps, unsigned int percent);
     void onRecvProgressUpdated(unsigned int taskId, unsigned int senderTid,
-                               const QString &filename, float rateKbps, unsigned int percent);
+                               const QString &filename, quint64 fileSize,
+                               float rateKbps, unsigned int percent);
 
 private:
     Ui::AutoConnWindow *ui;
     AutoConnController *m_ctrl = nullptr;
 
     SatelliteImageWidget *m_imageWidget     = nullptr;
+    RateChartWidget      *m_rateChart       = nullptr;
     QPlainTextEdit       *m_logEdit         = nullptr;
     SendHistoryTab       *m_sendHistoryTab  = nullptr;
     ReceiveHistoryTab    *m_recvHistoryTab  = nullptr;
@@ -59,12 +64,17 @@ private:
     QTimer    *m_clockTimer = nullptr;
 
     RealtimeStreamDialog *m_realtimeDlg = nullptr;
-    QString    m_selectedFilePath;
+    QStringList m_selectedFilePaths;
 
     float      m_lastSendRateKbps = 0.0f;
     float      m_lastRecvRateKbps = 0.0f;
     qint64     m_lastSendRateMs   = 0;
     qint64     m_lastRecvRateMs   = 0;
+
+    QMap<unsigned int, qint64> m_sendStartMs;   // taskId → 传输开始时间戳(ms)
+    QMap<unsigned int, qint64> m_recvStartMs;   // taskId → 传输开始时间戳(ms)
+
+    static QString formatDuration(qint64 elapsedMs);
 
     void setupCustomWidgets();
     void applyStateStyle(ConnState s);

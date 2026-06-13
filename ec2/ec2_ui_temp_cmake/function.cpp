@@ -11,6 +11,7 @@
 #include <thread>
 #include <iostream>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <condition_variable>
 #include <atomic>
 
@@ -238,6 +239,7 @@ DWORD UpdateSendTaskStatusState(const std::shared_ptr<FileTaskSendStatusInfo> &p
     MutexLockGuard gGuard(_sendTask_Mutex);
     for (auto &pTaskState: _sendTaskState) {
         if (pInfo->m_task_id == pTaskState->_taskID) {
+            pTaskState->_fileSize = pInfo->m_file_size;
             if(pInfo->m_time_second!=0&&pInfo->m_time_second!=NAN){
                 pTaskState->_transferTime = pInfo->m_time_second;
             }
@@ -347,6 +349,7 @@ void UpdateRecvTaskStatusState(const std::shared_ptr<FileTaskRecvStatusInfo> &pI
     bool bCreateNewState = true;
     for (auto &pTaskState: _recvTaskState) {
         if (pInfo->m_task_id == pTaskState->_taskID) {
+            pTaskState->_fileSize = pInfo->m_file_size;
             pTaskState->_transferTime = pInfo->m_time_second;
 //            printf("time is:%d\n",pTaskState->_transferTime);
             float averageSpeed=pInfo->m_file_size*8.0/pInfo->m_time_second;
@@ -367,45 +370,68 @@ void UpdateRecvTaskStatusState(const std::shared_ptr<FileTaskRecvStatusInfo> &pI
     pTask->_process = pInfo->m_current_proc;
     pTask->_taskFilePath=pInfo->m_file_absolute_path;
     pTask->_taskName = pInfo->m_filename;
-    pTask->_taskState = 4;
+    pTask->_fileSize = pInfo->m_file_size;
+    // ⚠️ 修复：使用实际状态，而非硬编码 4
+    pTask->_taskState = pInfo->m_recv_status;
+    if (pInfo->m_time_second > 0) {
+        pTask->_transferSpeed = pInfo->m_file_size * 8.0f / pInfo->m_time_second;
+        pTask->_transferTime  = pInfo->m_time_second;
+    }
     _recvTaskState.push_back(pTask);
 }
 
 // 创建服务器
-bool createServer(std::string localAddr, int localPort, bool isDTU) {
+bool createServer(std::string localAddr, int localPort, bool isDTU,
+                  DWORD channelHead, DWORD channelNumber) {
     bool isForceLocalPort = true;
-    bool keep_running = true;
-    printf("[Debug]funcion.cpp::\n createServer(localip:%s, localport:%d, isDUT:%d)\n",
-           localAddr.c_str(), localPort, isDTU);
+    printf("[Debug]funcion.cpp::\n createServer(localip:%s, localport:%d, isDTU:%d, head:%u)\n",
+           localAddr.c_str(), localPort, isDTU, channelHead);
+
+    // 回调注册（仅首次，防止双通道重复注册）
+    static bool s_serverCallbacksRegistered = false;
+    auto registerServerCallbacks = []() {
+        register_mrudp_dataserver_callback("AutoSendMessage", mrudp_dataserver_startAutoSend_callback);
+        register_mrudp_dataserver_callback("AskStartVideoTrans", mrudp_dataserver_startVideoTrans_callback);
+    };
 
     if(isDTU == false){
-        if (CreateTcpServerChannel(localPort,localAddr,3020,100,isForceLocalPort))
+        if (CreateTcpServerChannel(localPort, localAddr, channelHead, channelNumber, isForceLocalPort))
         {
-            channelNum += 1;  // 成功创建服务器，更新 channelNum
-            register_mrudp_dataserver_callback("AutoSendMessage", mrudp_dataserver_startAutoSend_callback);
-            register_mrudp_dataserver_callback("AskStartVideoTrans", mrudp_dataserver_startVideoTrans_callback);
+            channelNum += 1;
+            if (!s_serverCallbacksRegistered) {
+                registerServerCallbacks();
+                s_serverCallbacksRegistered = true;
+            }
+            printf("[Debug] createServer: 自组网通道创建成功, head=%u\n", channelHead);
             return true;
         }
-        return false;  // 创建失败
+        printf("[Debug] createServer: 自组网通道创建失败\n");
+        return false;
      }
     else{
-        if (CreateDtuTcpServerChannel(localPort,localAddr,3020,100))
+        if (CreateDtuTcpServerChannel(localPort, localAddr, channelHead, channelNumber))
         {
-            channelNum += 1;  // 成功创建服务器，更新 channelNum
-            register_mrudp_dataserver_callback("AutoSendMessage", mrudp_dataserver_startAutoSend_callback);
-            register_mrudp_dataserver_callback("AskStartVideoTrans", mrudp_dataserver_startVideoTrans_callback);
+            channelNum += 1;
+            if (!s_serverCallbacksRegistered) {
+                registerServerCallbacks();
+                s_serverCallbacksRegistered = true;
+            }
+            printf("[Debug] createServer: DTU通道创建成功, head=%u\n", channelHead);
             return true;
         }
-        return false;  // 创建失败
+        printf("[Debug] createServer: DTU通道创建失败\n");
+        return false;
     }
 }
 
 //創建客戶端
-bool createClient(std::string localAddr,int localPort,std::string remoteAddr,unsigned int remotePort, bool isDTU)
+bool createClient(std::string localAddr, int localPort,
+                  std::string remoteAddr, unsigned int remotePort, bool isDTU,
+                  DWORD channel)
 {
-    bool isForceLocalPort= true;
-    printf("[Debug]function.cpp::\n createClient(localip:%s, localport:%d, remoteAddr:%s, remotePort:%d, isDUT:%d)\n",
-           localAddr.c_str(), localPort, remoteAddr.c_str(), remotePort, isDTU);
+    bool isForceLocalPort = true;
+    printf("[Debug]function.cpp::\n createClient(localip:%s, localport:%d, remoteAddr:%s, remotePort:%d, isDTU:%d, channel:%u)\n",
+           localAddr.c_str(), localPort, remoteAddr.c_str(), remotePort, isDTU, channel);
 
     infohub_instance->value_set("EC", "gui", "Server_infohub");
 
@@ -417,39 +443,94 @@ bool createClient(std::string localAddr,int localPort,std::string remoteAddr,uns
         s_rpcServerStarted = true;
     }
 
+    // 回调注册（仅首次，防止双通道重复注册）
+    static bool s_clientCallbacksRegistered = false;
+
     if(isDTU == false) {
-        if (CreateTcpClientChannel(localPort, remotePort, localAddr, remoteAddr, 3200, isForceLocalPort))
+        if (CreateTcpClientChannel(localPort, remotePort, localAddr, remoteAddr, channel, isForceLocalPort))
         {
-            printf("CreateTcpClientChannel!!!启动普通连接成功!!!");
+            printf("CreateTcpClientChannel!!!启动普通连接成功!!! channel=%u\n", channel);
             clientChannelNum += 1;
-            register_mrudp_dataserver_callback("AutoSendMessage", mrudp_dataserver_startAutoSend_callback);
-            register_mrudp_dataserver_callback("AskStartVideoTrans", mrudp_dataserver_startVideoTrans_callback);
-            //std::thread fileSendThread(FileSendThread);
-            //fileSendThread.detach();
+            if (!s_clientCallbacksRegistered) {
+                register_mrudp_dataserver_callback("AutoSendMessage", mrudp_dataserver_startAutoSend_callback);
+                register_mrudp_dataserver_callback("AskStartVideoTrans", mrudp_dataserver_startVideoTrans_callback);
+                s_clientCallbacksRegistered = true;
+            }
             return true;
         }
+        printf("CreateTcpClientChannel!!!启动普通连接失败!!!\n");
         return false;
     }
     else{
-        if (CreateDtuTcpClientChannel(localPort, remotePort, localAddr, remoteAddr, 3200))
+        if (CreateDtuTcpClientChannel(localPort, remotePort, localAddr, remoteAddr, channel))
         {
-            printf("CreateDtuTcpClientChannel!!!启动DTU成功!!!");
+            printf("CreateDtuTcpClientChannel!!!启动DTU成功!!! channel=%u\n", channel);
             clientChannelNum += 1;
-            //register_mrudp_dataserver_callback("AutoSendMessage", mrudp_dataserver_startAutoSend_callback);
-
-            if(register_mrudp_dataserver_callback("AutoSendMessage", mrudp_dataserver_startAutoSend_callback)==false)
-            {
-                printf("接收方的mrudp数据服务AutoSendMessage的回调-注册失败！\n");
-                return -1;
+            if (!s_clientCallbacksRegistered) {
+                if(register_mrudp_dataserver_callback("AutoSendMessage", mrudp_dataserver_startAutoSend_callback)==false)
+                {
+                    printf("接收方的mrudp数据服务AutoSendMessage的回调-注册失败！\n");
+                    return false;
+                }
+                register_mrudp_dataserver_callback("AskStartVideoTrans", mrudp_dataserver_startVideoTrans_callback);
+                s_clientCallbacksRegistered = true;
             }
-
-            register_mrudp_dataserver_callback("AskStartVideoTrans", mrudp_dataserver_startVideoTrans_callback);
-            //std::thread fileSendThread(FileSendThread);
-            //fileSendThread.detach();
             return true;
         }
+        printf("CreateDtuTcpClientChannel!!!启动DTU失败!!!\n");
         return false;
     }
+}
+
+// 创建双路径服务器（自组网 + DTU 同时监听）
+bool createDualServer(std::string meshAddr, int meshPort,
+                      std::string dtuAddr, int dtuPort)
+{
+    printf("[Debug] createDualServer: mesh=%s:%d, dtu=%s:%d\n",
+           meshAddr.c_str(), meshPort, dtuAddr.c_str(), dtuPort);
+
+    // 自组网通道: channelHead=3020, 100端口
+    bool meshOk = createServer(meshAddr, meshPort, false, 3020, 100);
+    if (!meshOk) {
+        printf("[Error] createDualServer: 自组网通道创建失败!\n");
+    }
+
+    // DTU通道: channelHead=3120, 100端口
+    bool dtuOk = createServer(dtuAddr, dtuPort, true, 3120, 100);
+    if (!dtuOk) {
+        printf("[Error] createDualServer: DTU通道创建失败!\n");
+    }
+
+    printf("[Debug] createDualServer: 结果 mesh=%d dtu=%d\n", meshOk, dtuOk);
+    return meshOk;  // 至少自组网要成功
+}
+
+// 创建双路径客户端（自组网 + DTU 同时连接）
+bool createDualClient(std::string meshAddr, int meshPort,
+                      std::string meshRemoteAddr, int meshRemotePort,
+                      std::string dtuAddr, int dtuPort,
+                      std::string dtuRemoteAddr, int dtuRemotePort)
+{
+    printf("[Debug] createDualClient: mesh=%s:%d->%s:%d, dtu=%s:%d->%s:%d\n",
+           meshAddr.c_str(), meshPort, meshRemoteAddr.c_str(), meshRemotePort,
+           dtuAddr.c_str(), dtuPort, dtuRemoteAddr.c_str(), dtuRemotePort);
+
+    // 自组网通道: channel=3220
+    bool meshOk = createClient(meshAddr, meshPort, meshRemoteAddr,
+                               (unsigned int)meshRemotePort, false, 3220);
+    if (!meshOk) {
+        printf("[Error] createDualClient: 自组网通道创建失败!\n");
+    }
+
+    // DTU通道: channel=3320
+    bool dtuOk = createClient(dtuAddr, dtuPort, dtuRemoteAddr,
+                              (unsigned int)dtuRemotePort, true, 3320);
+    if (!dtuOk) {
+        printf("[Error] createDualClient: DTU通道创建失败!\n");
+    }
+
+    printf("[Debug] createDualClient: 结果 mesh=%d dtu=%d\n", meshOk, dtuOk);
+    return meshOk;  // 至少自组网要成功
 }
 
 //创建发送任务
@@ -468,6 +549,10 @@ bool createTransferSendTask(unsigned int TID,std::string fileName,std::string fi
         tempSend->_taskFilePath=filePath;
         tempSend->_taskName=fileName;
         tempSend->_taskState=0;
+        struct stat st{};
+        if (stat(filePath.c_str(), &st) == 0) {
+            tempSend->_fileSize = static_cast<quint64>(st.st_size);
+        }
         _sendTaskState.push_back(tempSend);
         emit dataUpdater->updateSendStatusSignal();
         return true;
@@ -492,6 +577,10 @@ bool createTransferSendTask(unsigned int TID,std::string fileName,std::string fi
         tempSend->_taskFilePath=filePath;
         tempSend->_taskName=fileName;
         tempSend->_taskState=0;
+        struct stat st2{};
+        if (stat(filePath.c_str(), &st2) == 0) {
+            tempSend->_fileSize = static_cast<quint64>(st2.st_size);
+        }
 //        qDebug("tempTask->_dTermID: %d", tempTask->_dTermID);
 //        qDebug("tempTask->_fileName: %s", tempTask->_fileName.c_str());
 //        qDebug("tempTask->_fileAddress: %s", tempTask->_fileAddress.c_str());

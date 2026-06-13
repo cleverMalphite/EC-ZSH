@@ -1,4 +1,5 @@
 #include "AutoConnController.h"
+#include "FileWatchDog.h"
 #include "function.h"
 
 #include <QDateTime>
@@ -104,16 +105,19 @@ AutoConnController::AutoConnController(QObject *parent)
     m_heartbeatTimer = new QTimer(this);
     m_rateTimer      = new QTimer(this);
     m_discoveryTimer = new QTimer(this);
+    m_autoSendTimer  = new QTimer(this);
 
     m_retryTimer->setSingleShot(false);
     m_heartbeatTimer->setSingleShot(false);
     m_rateTimer->setSingleShot(false);
     m_discoveryTimer->setSingleShot(false);
+    m_autoSendTimer->setSingleShot(false);
 
     connect(m_retryTimer,     &QTimer::timeout, this, &AutoConnController::onRetryTimer);
     connect(m_heartbeatTimer, &QTimer::timeout, this, &AutoConnController::onHeartbeatTimer);
     connect(m_rateTimer,      &QTimer::timeout, this, &AutoConnController::onRateTimer);
     connect(m_discoveryTimer, &QTimer::timeout, this, &AutoConnController::onDiscoveryTimer);
+    connect(m_autoSendTimer,  &QTimer::timeout, this, &AutoConnController::processAutoSendQueue);
 }
 
 AutoConnController::~AutoConnController()
@@ -143,12 +147,26 @@ void AutoConnController::start()
         }
     }
 
-    emit logMessage(QString("[AutoConn] 角色: %1  本地 %2:%3  远端 %4:%5")
+    QString modeStr;
+    switch (m_connMode) {
+        case ConnMode::MeshOnly: modeStr = "自组网"; break;
+        case ConnMode::DTUOnly:  modeStr = "DTU"; break;
+        case ConnMode::DualPath: modeStr = "双链路"; break;
+    }
+    emit logMessage(QString("[AutoConn] 角色: %1  模式: %2  本地 %3:%4  远端 %5:%6")
                         .arg(m_role == NodeRole::UAV ? "无人机端(UAV)" : "地面端(GROUND)")
+                        .arg(modeStr)
                         .arg(QString::fromStdString(m_localAddr))
                         .arg(m_localPort)
                         .arg(QString::fromStdString(m_remoteAddr))
                         .arg(m_remotePort));
+    if (m_connMode == ConnMode::DTUOnly || m_connMode == ConnMode::DualPath) {
+        emit logMessage(QString("[AutoConn] DTU链路: 本地 %1:%2  远端 %3:%4")
+                            .arg(QString::fromStdString(m_dtuLocalAddr))
+                            .arg(m_dtuLocalPort)
+                            .arg(QString::fromStdString(m_dtuRemoteAddr))
+                            .arg(m_dtuRemotePort));
+    }
 
     // 监听终端列表变化
     if (dataUpdater) {
@@ -166,14 +184,20 @@ void AutoConnController::start()
                             unsigned int pct = s->_process;
                             QString name = QString::fromStdString(s->_taskName);
                             unsigned int state = s->_taskState;
-                            emit sendProgressUpdated(task_id, s->_TID, name, kbps, pct);
-                            // 发送完成/失败时补打结果日志
-                            if (state == 1) {
-                                emit logMessage(QString("[Transfer] 任务#%1 %2 发送完成 100%  平均 %3 kbps")
-                                    .arg(task_id).arg(name).arg(kbps, 0, 'f', 1));
-                            } else if (state == 2) {
-                                emit logMessage(QString("[Transfer] 任务#%1 %2 发送失败")
-                                    .arg(task_id).arg(name));
+
+                            // 节流：进度百分比没有变化时，不重复向 UI 发送
+                            unsigned int lastPct = m_lastSentSendPct.value(task_id, 999);
+                            if (pct != lastPct || state == 1 || state == 2) {
+                                m_lastSentSendPct[task_id] = pct;
+                                emit sendProgressUpdated(task_id, s->_TID, name, s->_fileSize, kbps, pct);
+                                // 发送完成/失败时补打结果日志
+                                if (state == 1) {
+                                    emit logMessage(QString("[Transfer] 任务#%1 %2 发送完成 100%  平均 %3 kbps")
+                                        .arg(task_id).arg(name).arg(kbps, 0, 'f', 1));
+                                } else if (state == 2) {
+                                    emit logMessage(QString("[Transfer] 任务#%1 %2 发送失败")
+                                        .arg(task_id).arg(name));
+                                }
                             }
                             break;
                         }
@@ -193,33 +217,47 @@ void AutoConnController::start()
                                     kbps = recvBw->m_total_rate;
                                 }
                             }
-                            QString name = QString::fromStdString(r->_taskName);
-                            emit recvProgressUpdated(task_id, r->_TID, name, kbps, r->_process);
-                            emit logMessage(QString("[Transfer] 接收任务#%1 %2  %3%  %4 kbps")
-                                .arg(task_id)
-                                .arg(name)
-                                .arg(r->_process)
-                                .arg(kbps, 0, 'f', 1));
+                            unsigned int pct = r->_process;
+                            // 节流：进度百分比没有变化时不重复向 UI 发送
+                            unsigned int lastPct = m_lastSentRecvPct.value(task_id, 999);
+                            if (pct != lastPct) {
+                                m_lastSentRecvPct[task_id] = pct;
+                                QString name = QString::fromStdString(r->_taskName);
+                                emit recvProgressUpdated(task_id, r->_TID, name, r->_fileSize, kbps, r->_process);
+                                // 仅在 100% 时打印一次日志
+                                if (pct >= 100) {
+                                    emit logMessage(QString("[Transfer] 接收任务#%1 %2 接收完成 100%")
+                                        .arg(task_id).arg(name));
+                                }
+                            }
                             break;
                         }
                     }
                 }, Qt::QueuedConnection);
 
-        // 接收完成/失败时打印日志
+        // 接收完成/失败时更新历史表格并打印日志
         connect(dataUpdater, &DataUpdater::updateRecvStatusSignal,
                 this, [this]() {
                     MutexLockGuard guard(_recvTask_Mutex);
                     for (const auto &r : _recvTaskState) {
                         if (!r) continue;
+                        const unsigned int id = r->_taskID;
                         // FILE_RECV_TASK_SUCCESS=5, FILE_RECV_TASK_FAILED=6
-                        if (r->_taskState == 5) {
-                            emit logMessage(QString("[Transfer] 接收任务#%1 %2  Recv Success")
-                                .arg(r->_taskID)
-                                .arg(QString::fromStdString(r->_taskName)));
-                        } else if (r->_taskState == 6) {
-                            emit logMessage(QString("[Transfer] 接收任务#%1 %2  Recv Failed")
-                                .arg(r->_taskID)
-                                .arg(QString::fromStdString(r->_taskName)));
+                        if (r->_taskState == 5 && m_lastSentRecvPct.value(id, 0) < 100) {
+                            m_lastSentRecvPct[id] = 100;
+                            float kbps = (r->_transferSpeed > 0) ? r->_transferSpeed :
+                                         (r->_transferTime > 0 ? 0.0f : 0.0f);
+                            QString name = QString::fromStdString(r->_taskName);
+                            emit recvProgressUpdated(id, r->_TID, name, r->_fileSize, kbps, 100);
+                            emit logMessage(QString("[Transfer] 接收任务#%1 %2 接收完成 100%")
+                                .arg(id).arg(name));
+                        } else if (r->_taskState == 6 && m_lastSentRecvPct.value(id, 0) < 100) {
+                            m_lastSentRecvPct[id] = r->_process;
+                            float kbps = r->_transferSpeed;
+                            QString name = QString::fromStdString(r->_taskName);
+                            emit recvProgressUpdated(id, r->_TID, name, r->_fileSize, kbps, r->_process);
+                            emit logMessage(QString("[Transfer] 接收任务#%1 %2 接收失败")
+                                .arg(id).arg(name));
                         }
                     }
                 }, Qt::QueuedConnection);
@@ -232,6 +270,8 @@ void AutoConnController::start()
     if (m_role == NodeRole::UAV) {
         // 无人机端：立即开始监听
         doStartListening();
+        // 初始化自动发送（仅 UAV 端）
+        initAutoSend();
     } else {
         // 地面端：立即发起第一次连接
         setState(ConnState::CONNECTING);
@@ -252,7 +292,13 @@ void AutoConnController::stop()
     if (m_heartbeatTimer) { m_heartbeatTimer->stop(); }
     if (m_rateTimer)      { m_rateTimer->stop(); }
     if (m_discoveryTimer) { m_discoveryTimer->stop(); }
+    if (m_autoSendTimer)  { m_autoSendTimer->stop(); }
     closeDiscoverySocket();
+
+    if (m_fileWatchDog) {
+        delete m_fileWatchDog;
+        m_fileWatchDog = nullptr;
+    }
 }
 
 void AutoConnController::requestReconnect()
@@ -264,10 +310,17 @@ void AutoConnController::requestReconnect()
 void AutoConnController::applyManualConnection(const QString &localAddr,
                                                int localPort,
                                                const QString &remoteAddr,
-                                               int remotePort)
+                                               int remotePort,
+                                               ConnMode mode,
+                                               const QString &dtuLocalAddr,
+                                               int dtuLocalPort,
+                                               const QString &dtuRemoteAddr,
+                                               int dtuRemotePort)
 {
     const QString local = localAddr.trimmed();
     const QString remote = remoteAddr.trimmed();
+    const QString dtuLocal = dtuLocalAddr.trimmed();
+    const QString dtuRemote = dtuRemoteAddr.trimmed();
 
     if (!local.isEmpty()) {
         m_localAddr = local.toStdString();
@@ -282,16 +335,46 @@ void AutoConnController::applyManualConnection(const QString &localAddr,
         m_remotePort = remotePort;
     }
 
+    m_connMode = mode;
+
+    // 更新 DTU 参数
+    if (!dtuLocal.isEmpty()) {
+        m_dtuLocalAddr = dtuLocal.toStdString();
+    }
+    if (dtuLocalPort > 0 && dtuLocalPort <= 65535) {
+        m_dtuLocalPort = dtuLocalPort;
+    }
+    if (!dtuRemote.isEmpty()) {
+        m_dtuRemoteAddr = dtuRemote.toStdString();
+    }
+    if (dtuRemotePort > 0 && dtuRemotePort <= 65535) {
+        m_dtuRemotePort = dtuRemotePort;
+    }
+
     m_discoveredRemoteAddr.clear();
     m_discoveredRemotePort = 0;
     m_discoveredRemoteTid = 0;
     m_discoveredRemoteSeenMs = 0;
 
-    emit logMessage(QString("[AutoConn] 手动连接参数已更新: 本地 %1:%2  远端 %3:%4")
+    QString modeStr;
+    switch (m_connMode) {
+        case ConnMode::MeshOnly: modeStr = "自组网"; break;
+        case ConnMode::DTUOnly:  modeStr = "DTU"; break;
+        case ConnMode::DualPath: modeStr = "双链路"; break;
+    }
+    emit logMessage(QString("[AutoConn] 手动连接参数已更新: 模式=%1  本地 %2:%3  远端 %4:%5")
+                        .arg(modeStr)
                         .arg(QString::fromStdString(m_localAddr))
                         .arg(m_localPort)
                         .arg(QString::fromStdString(m_remoteAddr))
                         .arg(m_remotePort));
+    if (m_connMode == ConnMode::DTUOnly || m_connMode == ConnMode::DualPath) {
+        emit logMessage(QString("[AutoConn] DTU链路: 本地 %1:%2  远端 %3:%4")
+                            .arg(QString::fromStdString(m_dtuLocalAddr))
+                            .arg(m_dtuLocalPort)
+                            .arg(QString::fromStdString(m_dtuRemoteAddr))
+                            .arg(m_dtuRemotePort));
+    }
 
     requestReconnect();
 }
@@ -419,6 +502,23 @@ void AutoConnController::readConfig()
     m_retryIntervalMs    = GetIntegerKeyIni("AutoConn", "RetryIntervalMs",   3000);
     m_heartbeatTimeoutMs = GetIntegerKeyIni("AutoConn", "HeartbeatTimeoutMs", 5000);
 
+    // 连接模式：MeshOnly(0) / DTUOnly(1) / DualPath(2)
+    // 兼容旧版 IsDTU 字段：IsDTU=true 等价于 ConnMode=DTUOnly
+    int connModeRaw = GetIntegerKeyIni("AutoConn", "ConnMode", -1);
+    if (connModeRaw >= 0 && connModeRaw <= 2) {
+        m_connMode = static_cast<ConnMode>(connModeRaw);
+    } else if (GetBoolValueKeyIni("AutoConn", "IsDTU", false)) {
+        m_connMode = ConnMode::DTUOnly;  // 旧版配置兼容
+    } else {
+        m_connMode = ConnMode::MeshOnly;
+    }
+
+    // DTU 链路参数（仅在 DTUOnly / DualPath 模式下需要）
+    m_dtuLocalAddr  = GetStringValueKeyIni("AutoConn", "DTULocalIP",  "");
+    m_dtuLocalPort  = GetIntegerKeyIni("AutoConn", "DTULocalPort", 0);
+    m_dtuRemoteAddr = GetStringValueKeyIni("AutoConn", "DTURemoteIP", "");
+    m_dtuRemotePort = GetIntegerKeyIni("AutoConn", "DTURemotePort", 0);
+
     m_discoveredRemoteAddr.clear();
     m_discoveredRemotePort = 0;
     m_discoveredRemoteTid = 0;
@@ -484,6 +584,18 @@ void AutoConnController::readConfig()
         fallback.tcpPort = m_remotePort;
         m_discoveryPeers.push_back(fallback);
     }
+
+    // ---- 自动发送配置（仅 UAV 端有效）----
+    m_autoSendEnabled      = GetBoolValueKeyIni("AutoConn", "AutoSendEnable", false);
+    m_autoSendTargetTid    = (unsigned int)GetIntegerKeyIni("AutoConn", "AutoSendTargetTID",
+                                 GetIntegerKeyIni("BigDataTransfer", "DEST_TID", 0));
+    m_autoSendStableChecks = GetIntegerKeyIni("AutoConn", "AutoSendStableChecks", 2);
+    m_autoSendScanIntervalMs = GetIntegerKeyIni("AutoConn", "AutoSendScanIntervalMs", 2000);
+    m_autoSendDir = QString::fromStdString(
+        GetStringValueKeyIni("BigDataTransfer", "send_dir", "../../FileSend/"));
+
+    if (m_autoSendStableChecks < 1) m_autoSendStableChecks = 2;
+    if (m_autoSendScanIntervalMs < 500) m_autoSendScanIntervalMs = 2000;
 }
 
 void AutoConnController::setState(ConnState s)
@@ -497,11 +609,30 @@ void AutoConnController::doStartListening()
 {
     if (m_serverCreated) return;
 
-    emit logMessage(QString("[AutoConn] UAV端 开始监听 %1:%2")
-                        .arg(QString::fromStdString(m_localAddr))
-                        .arg(m_localPort));
+    bool ok = false;
 
-    bool ok = createServer(m_localAddr, m_localPort, false);
+    switch (m_connMode) {
+        case ConnMode::MeshOnly:
+            emit logMessage(QString("[AutoConn] UAV端 开始监听(自组网) %1:%2")
+                                .arg(QString::fromStdString(m_localAddr))
+                                .arg(m_localPort));
+            ok = createServer(m_localAddr, m_localPort, false, 3020, 100);
+            break;
+        case ConnMode::DTUOnly:
+            emit logMessage(QString("[AutoConn] UAV端 开始监听(DTU) %1:%2")
+                                .arg(QString::fromStdString(m_dtuLocalAddr))
+                                .arg(m_dtuLocalPort));
+            ok = createServer(m_dtuLocalAddr, m_dtuLocalPort, true, 3020, 100);
+            break;
+        case ConnMode::DualPath:
+            emit logMessage(QString("[AutoConn] UAV端 开始监听(双链路): mesh=%1:%2, dtu=%3:%4")
+                                .arg(QString::fromStdString(m_localAddr)).arg(m_localPort)
+                                .arg(QString::fromStdString(m_dtuLocalAddr)).arg(m_dtuLocalPort));
+            ok = createDualServer(m_localAddr, m_localPort,
+                                  m_dtuLocalAddr, m_dtuLocalPort);
+            break;
+    }
+
     if (ok) {
         m_serverCreated = true;
         setState(ConnState::CONNECTING);  // 监听中，等待对端接入
@@ -525,10 +656,27 @@ void AutoConnController::doConnect()
                             .arg(m_discoveredRemoteTid));
     }
 
-    // 地面端发起主动连接
-    bool ok = createClient(m_localAddr, m_localPort,
-                           targetAddr, (unsigned int)targetPort,
-                           false);
+    // 根据连接模式选择通道创建方式
+    bool ok = false;
+    switch (m_connMode) {
+        case ConnMode::MeshOnly:
+            ok = createClient(m_localAddr, m_localPort,
+                              targetAddr, (unsigned int)targetPort,
+                              false, 3220);
+            break;
+        case ConnMode::DTUOnly:
+            ok = createClient(m_dtuLocalAddr, m_dtuLocalPort,
+                              m_dtuRemoteAddr, (unsigned int)m_dtuRemotePort,
+                              true, 3320);
+            break;
+        case ConnMode::DualPath:
+            ok = createDualClient(m_localAddr, m_localPort,
+                                  targetAddr, targetPort,
+                                  m_dtuLocalAddr, m_dtuLocalPort,
+                                  m_dtuRemoteAddr, m_dtuRemotePort);
+            break;
+    }
+
     if (!ok) {
         emit logMessage(QString("[AutoConn] 连接 %1:%2 失败，等待重试")
                             .arg(QString::fromStdString(targetAddr))
@@ -818,6 +966,52 @@ void AutoConnController::onRateTimer()
     recvKbps = smoothRate(m_recvRateSamples, recvKbps);
 
     emit transferRateUpdated(sendKbps, recvKbps);
+
+    // ---- 完成状态兑底轮询：每秒扫描一次，防止状态回调丢失导致 UI 永远停在“发送中/接收中” ----
+    {
+        MutexLockGuard guard(_sendTask_Mutex);
+        for (const auto &s : _sendTaskState) {
+            if (!s) continue;
+            const unsigned int id = s->_taskID;
+            // state 1 = 发送成功，2 = 发送失败
+            if (s->_taskState == 1 && m_lastSentSendPct.value(id, 0) < 100) {
+                m_lastSentSendPct[id] = 100;
+                float kbps = s->_transferSpeed;
+                QString name = QString::fromStdString(s->_taskName);
+                emit sendProgressUpdated(id, s->_TID, name, s->_fileSize, kbps, 100);
+                emit logMessage(QString("[Transfer] 任务#%1 %2 发送完成 100%  平均 %3 kbps")
+                    .arg(id).arg(name).arg(kbps, 0, 'f', 1));
+            } else if (s->_taskState == 2 && !m_lastSentSendPct.contains(id)) {
+                m_lastSentSendPct[id] = s->_process;
+                float kbps = s->_transferSpeed;
+                QString name = QString::fromStdString(s->_taskName);
+                emit sendProgressUpdated(id, s->_TID, name, s->_fileSize, kbps, s->_process);
+                emit logMessage(QString("[Transfer] 任务#%1 %2 发送失败").arg(id).arg(name));
+            }
+        }
+    }
+    {
+        MutexLockGuard guard(_recvTask_Mutex);
+        for (const auto &r : _recvTaskState) {
+            if (!r) continue;
+            const unsigned int id = r->_taskID;
+            // state 5 = 接收成功，6 = 接收失败
+            if (r->_taskState == 5 && m_lastSentRecvPct.value(id, 0) < 100) {
+                m_lastSentRecvPct[id] = 100;
+                float kbps = r->_transferSpeed;
+                QString name = QString::fromStdString(r->_taskName);
+                emit recvProgressUpdated(id, r->_TID, name, r->_fileSize, kbps, 100);
+                emit logMessage(QString("[Transfer] 接收任务#%1 %2 接收完成 100%")
+                    .arg(id).arg(name));
+            } else if (r->_taskState == 6 && m_lastSentRecvPct.value(id, 0) < 100) {
+                m_lastSentRecvPct[id] = r->_process;
+                float kbps = r->_transferSpeed;
+                QString name = QString::fromStdString(r->_taskName);
+                emit recvProgressUpdated(id, r->_TID, name, r->_fileSize, kbps, r->_process);
+                emit logMessage(QString("[Transfer] 接收任务#%1 %2 接收失败").arg(id).arg(name));
+            }
+        }
+    }
 }
 
 float AutoConnController::smoothRate(std::deque<float> &samples, float value)
@@ -857,4 +1051,91 @@ bool AutoConnController::sendFileToTid(unsigned int tid,
         return false;
     }
     return createTransferSendTask(tid, fileName, filePath);
+}
+
+// ============================================================
+//  自动发送（仅 UAV 端）
+// ============================================================
+
+void AutoConnController::initAutoSend()
+{
+    if (!m_autoSendEnabled) {
+        emit logMessage("[AutoSend] 自动发送功能未启用");
+        return;
+    }
+
+    if (m_role != NodeRole::UAV) {
+        emit logMessage("[AutoSend] 非 UAV 端，跳过自动发送初始化");
+        return;
+    }
+
+    emit logMessage(QString("[AutoSend] 初始化自动发送: 目录=%1 目标TID=%2 稳定检测=%3次 扫描间隔=%4ms")
+                        .arg(m_autoSendDir)
+                        .arg(m_autoSendTargetTid)
+                        .arg(m_autoSendStableChecks)
+                        .arg(m_autoSendScanIntervalMs));
+
+    // 创建文件监控器
+    m_fileWatchDog = new FileWatchDog(m_autoSendDir,
+                                      m_autoSendStableChecks,
+                                      m_autoSendScanIntervalMs,
+                                      this);
+    connect(m_fileWatchDog, &FileWatchDog::fileReady,
+            this, &AutoConnController::onFileReady,
+            Qt::QueuedConnection);
+
+    // 启动发送队列处理定时器（每秒检查一次）
+    m_autoSendTimer->start(1000);
+}
+
+void AutoConnController::onFileReady(const QString &absolutePath, const QString &fileName)
+{
+    emit logMessage(QString("[AutoSend] 检测到新文件就绪: %1").arg(fileName));
+    m_autoSendQueue.enqueue(qMakePair(absolutePath, fileName));
+}
+
+void AutoConnController::processAutoSendQueue()
+{
+    if (m_stopped || m_autoSendQueue.isEmpty()) {
+        return;
+    }
+
+    // 未连接时不发送，保留在队列中等待连接恢复
+    if (m_state != ConnState::CONNECTED) {
+        return;
+    }
+
+    if (m_autoSendTargetTid == 0) {
+        return;
+    }
+
+    // 检查是否有活跃的发送任务（BigDataTransferManager 不允许同时发送）
+    {
+        MutexLockGuard guard(_sendTask_Mutex);
+        for (const auto &s : _sendTaskState) {
+            if (s && s->_taskState == 0) {
+                // 有任务正在发送，等待当前任务完成
+                return;
+            }
+        }
+    }
+
+    // 取出队首文件
+    auto filePair = m_autoSendQueue.dequeue();
+    const QString &filePath = filePair.first;
+    const QString &fileName = filePair.second;
+
+    const bool ok = sendFileToTid(m_autoSendTargetTid,
+                                  filePath.toStdString(),
+                                  fileName.toStdString());
+    if (ok) {
+        emit logMessage(QString("[AutoSend] 自动发送任务已创建: %1 -> TID %2")
+                            .arg(fileName)
+                            .arg(m_autoSendTargetTid));
+    } else {
+        emit logMessage(QString("[AutoSend] 自动发送失败: %1（将在下次重试）")
+                            .arg(fileName));
+        // 发送失败时放回队列头部，下次重试
+        m_autoSendQueue.prepend(filePair);
+    }
 }

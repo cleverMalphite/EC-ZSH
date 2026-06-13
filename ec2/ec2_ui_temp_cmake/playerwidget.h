@@ -25,6 +25,7 @@ public:
 
     void startPlay(const int fps);
     void stopPlay();
+    void clearDisplay();
 
     void setMaxBufferSize(const int bufsize){
         if(bufsize>10) this->len_buf = 10;

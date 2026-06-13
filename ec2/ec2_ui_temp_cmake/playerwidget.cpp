@@ -57,13 +57,25 @@ void PlayerWidget::stopPlay()
     }
 }
 
+void PlayerWidget::clearDisplay()
+{
+    std::lock_guard<std::mutex> guard(this->images_lock);
+    this->images.clear();
+    this->lastPixmap = QPixmap();
+    update();
+}
+
 PlayerWidget::~PlayerWidget()
 {
 }
 
 void PlayerWidget::paintEvent(QPaintEvent *event) {
 
-    if (this->is_play == false) return;
+    if (this->is_play == false) {
+        QPainter painter(this);
+        painter.eraseRect(rect());
+        return;
+    }
 
 #ifdef DEBUG_PLAYER_WIDGET_
     std::cout<<"<DEBUG>[paintEvent]images list size:"<<this->images.size()<<std::endl;

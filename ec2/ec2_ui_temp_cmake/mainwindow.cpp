@@ -6,6 +6,10 @@
 #include "infoHub/infoHubRpcClient.h"
 #include <QDebug>
 #include <QWidget>
+#include <QLabel>
+#include <QComboBox>
+#include <QDir>
+#include <QCoreApplication>
 
 
 //infoHubRpcClient sender_infohub_rpcclient;
@@ -54,6 +58,24 @@ void MainWindow::init(){
         ui->recvbutton_layout->addWidget(startAutoSend_button);
         ui->recvbutton_layout->addWidget(askVideoTrans_button);
         ui->recvbutton_layout->addWidget(prePicture_recv);
+
+        //智能选网算法下拉框
+        QLabel* algorithmLabel = new QLabel("选网算法:");
+        algorithmLabel->setFont(QFont("黑体", 10));
+        ui->sendbutton_layout->addWidget(algorithmLabel);
+
+        QComboBox* algorithmComboBox = new QComboBox(this);
+        algorithmComboBox->setObjectName("algorithmComboBox");
+        algorithmComboBox->addItem("基于长短期记忆网络模型和深度强化学习的智能选网算法");
+        algorithmComboBox->addItem("基于不排队传输模型的无线网络带宽探测算法");
+        algorithmComboBox->addItem("基于BBR的无线网络拥塞控制算法");
+        algorithmComboBox->addItem("数据实时可靠传输控制算法");
+        algorithmComboBox->addItem("基于可变粒度的速率控制算法");
+        algorithmComboBox->addItem("基于深度学习的无线网络负载");
+        algorithmComboBox->addItem("基于子流耦合感知的多路拥塞控制算法");
+        algorithmComboBox->setCurrentIndex(0);
+        algorithmComboBox->setMinimumWidth(200);
+        ui->sendbutton_layout->addWidget(algorithmComboBox);
 
          //NOTE:测试用应急底层传输信令-》测试成功
          QPushButton* videoTransCommand=new QPushButton("测试视频信令");
@@ -117,22 +139,51 @@ void MainWindow::init(){
         connect(dataUpdater,&DataUpdater::updateRecvStatusSignal,this,&MainWindow::updateRecvTable,Qt::QueuedConnection);
         qDebug() << "Signal connected to updateSendTable";
     }
-    //视频相关操作
+    //视频区域替换为图片展示
     {
-        // 替换原本的 ResizableLabel 为 VideoSender/VideoReceiver
-        // Remove existing placeholders first if necessary, or just overwrite the layout content
-        
-        // Sender Side
+        // 尝试从多个路径加载图片
+        auto loadImage = [](QLabel *label, const QStringList &paths) -> bool {
+            for (const QString &p : paths) {
+                QPixmap pix(p);
+                if (!pix.isNull()) {
+                    label->setPixmap(pix.scaled(label->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                    label->setAlignment(Qt::AlignCenter);
+                    label->setScaledContents(false);
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        // 发送端图片
+        QLabel *sendImageLabel = new QLabel(this);
+        sendImageLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        sendImageLabel->setMinimumHeight(200);
+        sendImageLabel->setStyleSheet("QLabel{background-color: #1a1a2e; border-radius: 6px;}");
+        ui->sendVideo_layout->addWidget(sendImageLabel);
+        loadImage(sendImageLabel, {
+            QStringLiteral("../pic/OIP.webp"),
+            QStringLiteral("pic/OIP.webp"),
+            QStringLiteral("../../pic/OIP.webp"),
+            QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("../pic/OIP.webp")
+        });
+
+        // 接收端图片
+        QLabel *recvImageLabel = new QLabel(this);
+        recvImageLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        recvImageLabel->setMinimumHeight(200);
+        recvImageLabel->setStyleSheet("QLabel{background-color: #1a1a2e; border-radius: 6px;}");
+        ui->recvVideo_layout->addWidget(recvImageLabel);
+        loadImage(recvImageLabel, {
+            QStringLiteral("../pic/OIP.webp"),
+            QStringLiteral("pic/OIP.webp"),
+            QStringLiteral("../../pic/OIP.webp"),
+            QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("../pic/OIP.webp")
+        });
+
+        // 保留 videoSender/videoReceiver 对象（底层传输仍需要），但不添加到 UI
         videoSender = new VideoSender(this);
-        videoSender->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        videoSender->setMaximumHeight(260);
-        ui->sendVideo_layout->addWidget(videoSender);
-        
-        // Receiver Side
         videoReceiver = new VideoReceiver(this);
-        videoReceiver->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        videoReceiver->setMaximumHeight(260);
-        ui->recvVideo_layout->addWidget(videoReceiver);
     }
 
      //传输速率曲线初始化

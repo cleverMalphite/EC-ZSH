@@ -255,6 +255,8 @@ void tempPage::reset(int flag) {
         {
             ui->sendModelBox_sendTask->setCurrentIndex(0);
             ui->lineEdit_filepath_sendTask->clear();    //这里也有可能从配置文件中读取
+            fileNames_sendTask.clear();
+            filePaths_sendTask.clear();
         }
         break;
         case start_auto_send:
@@ -274,23 +276,33 @@ void tempPage::reset(int flag) {
     }
 }
 
-//选择文件按钮，弹出文件管理器
+//选择文件按钮，弹出文件管理器（支持多选）
 void tempPage::on_chooseFileButton_sendTask_clicked(){
     this->fileDialog=new QFileDialog(this);
     fileDialog->setWindowTitle(QString("选择文件"));
     fileDialog->setDirectory("./");
     //设置为视图模式
     fileDialog->setViewMode(QFileDialog::Detail);
-    QString filePath=fileDialog->getOpenFileName(this,"选择单个文件","./");
-    this->filePath_sendTask=filePath.toStdString();
-    this->fileName_sendTask= extractFileName(this->filePath_sendTask);
-    ui->lineEdit_filepath_sendTask->setText(filePath);
+    QStringList filePaths=fileDialog->getOpenFileNames(this,"选择文件","./");
+    if(filePaths.isEmpty()){
+        return;
+    }
+    this->filePaths_sendTask.clear();
+    this->fileNames_sendTask.clear();
+    for(const QString &path : filePaths){
+        this->filePaths_sendTask.push_back(path.toStdString());
+        this->fileNames_sendTask.push_back(extractFileName(path.toStdString()));
+    }
+    if(filePaths.size()==1){
+        ui->lineEdit_filepath_sendTask->setText(filePaths.first());
+    }else{
+        ui->lineEdit_filepath_sendTask->setText(QString("已选择 %1 个文件").arg(filePaths.size()));
+    }
 }
 
-//创建发送任务执行操作
+//创建发送任务执行操作（支持多文件）
 void tempPage::on_confirmButton_pageCreateSendTask_clicked(){
     bool is_RBUDP;
-    bool isDTU;
     if(ui->comboBox_sendTaskTerminals->currentText().isEmpty()){  //连接终端列表为空，则提示信息
         QMessageBox msgBox(QMessageBox::Information,"提示信息","当前无连接终端，不能新建任务！",QMessageBox::Ok,this);
         msgBox.setWindowFlags(this->windowFlags()&~Qt::WindowCloseButtonHint);
@@ -302,22 +314,35 @@ void tempPage::on_confirmButton_pageCreateSendTask_clicked(){
         } else {
             is_RBUDP = true;
         }
-        //回调传递is_RBUDP
-        //m_isRBUDP_MessageCallback(this->is_RBUDP);
-        if (ui->lineEdit_filepath_sendTask->text().isEmpty()) {
+        if (this->filePaths_sendTask.empty()) {
             QMessageBox msgBox(QMessageBox::Information, "提示信息", "请选择文件！", QMessageBox::Ok, this);
             msgBox.setWindowFlags(this->windowFlags() & ~Qt::WindowCloseButtonHint);
             msgBox.exec();
         } else {
-            if (createTransferSendTask(TID, this->fileName_sendTask, this->filePath_sendTask, is_RBUDP)) {
-
-                QMessageBox msgBox(QMessageBox::Information, "提示信息", "发送任务创建成功，正在发送中！",
+            int successCount = 0;
+            int failCount = 0;
+            for(size_t i = 0; i < filePaths_sendTask.size(); ++i){
+                if(createTransferSendTask(TID, fileNames_sendTask[i], filePaths_sendTask[i], is_RBUDP)){
+                    ++successCount;
+                }else{
+                    ++failCount;
+                }
+            }
+            if(failCount == 0){
+                QMessageBox msgBox(QMessageBox::Information, "提示信息",
+                                   QString("成功创建 %1 个发送任务，正在发送中！").arg(successCount).toStdString().c_str(),
                                    QMessageBox::Ok, this);
                 msgBox.setWindowFlags(this->windowFlags() & ~Qt::WindowCloseButtonHint);
                 msgBox.exec();
-                //退出界面
                 on_cancelButton_pageCreateSendTask_clicked();
-            } else {
+            }else if(successCount > 0){
+                QMessageBox msgBox(QMessageBox::Information, "提示信息",
+                                   QString("成功 %1 个，失败 %2 个。").arg(successCount).arg(failCount).toStdString().c_str(),
+                                   QMessageBox::Ok, this);
+                msgBox.setWindowFlags(this->windowFlags() & ~Qt::WindowCloseButtonHint);
+                msgBox.exec();
+                on_cancelButton_pageCreateSendTask_clicked();
+            }else{
                 QMessageBox msgBox(QMessageBox::Information, "提示信息", "发送任务创建失败，请重试！", QMessageBox::Ok,
                                    this);
                 msgBox.setWindowFlags(this->windowFlags() & ~Qt::WindowCloseButtonHint);
